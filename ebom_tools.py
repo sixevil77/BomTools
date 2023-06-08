@@ -1144,7 +1144,7 @@ def bomTools():
                 ef2 = ebomFile2.split('.')[0]
                 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                     df.to_excel(writer, sheet_name='Sheet1', index=False)
-                    writer.save()
+                    writer.close()
                     fileName= '%s(%s)_%s(%s)_差异件清单.xlsx' % (ef1, bk1, ef2, bk2)
                     ep.write(fileName)
                     ep.download_button(
