@@ -62,7 +62,18 @@ def bomTools():
         st.experimental_rerun()
 
     
-    s = st.sidebar.radio('BOM工具集',('BOM数据库维护','数据库问题核查','BOM数据表核对','BOM数据库核对','BOM差异件核对','CMAN统计工具','其他工具'))
+    s = st.sidebar.radio('BOM工具集',
+                         ('BOM数据库维护',
+                          '数据库问题核查',
+                          'BOM数据表核对',
+                          'BOM数据库核对',
+                          #'BOM差异件核对',
+                          '差异件清单生成',
+                          'LOU核查工具',
+                          #'工程配置工具',
+                          'CMAN统计工具',
+                          '其他工具'
+                          ))
 
     def BomLineStr(bomline):
         r = ''
@@ -74,7 +85,7 @@ def bomTools():
         return r
 
     def checkTreeData(td1, td2):
-        keys = ['id', 'name', 'cnt', 'level']
+        keys = ['id', 'name', 'count', 'level']
         b = True
         for k in keys:
             if not(td1[k] == td2[k]):
@@ -128,7 +139,7 @@ def bomTools():
 
         return diff
 
-    def SystemChildrenDiff_DB(ss, cols1, cols2):
+    def SystemChildrenDiff_DB(ss, cols1, cols2, container):
         s0 = ss['sys']
         sid0 = s0[0]
         sname0 = s0[1]
@@ -152,13 +163,48 @@ def bomTools():
 
         n0 = len(sc0)
         n1 = len(sc1)
-        if n0 == n1:
-            for i in range(0,n0):
-                b0 = sc0[i]
+        #if n0 == n1:
+        #    for i in range(0,n0):
+        #        b0 = sc0[i]
+        #        b1 = sc1[i]
+        #        if (b0[0] == b1[0]) and not(str(b0[1]) == str(b1[1]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3])):
+        #            r = True
+        #            break
+
+        ###########
+        for i in range(0,n0):
+            b0 = sc0[i]
+            id0 = b0[0]            
+            bIn = False
+            for j in range(0, n1):                
+                b1 = sc1[j]
+                id1 = b1[0]
+                if (id0 == id1):
+                    bIn = True
+                    r =  not(str(b0[1]) == str(b1[1]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3]))
+                    if not(r):
+                        break
+            r = r or (not bIn)
+            if r:
+                break 
+
+        if not r:
+            for i in range(0,n1):
                 b1 = sc1[i]
-                if (b0[0] == b1[0]) and not(str(b0[1]) == str(b1[1]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3])):
-                    r = True
+                id1 = b1[0]            
+                bIn = False
+                for j in range(0, n0):                
+                    b0 = sc0[j]
+                    id0 = b0[0]
+                    if (id0 == id1):
+                        bIn = True
+                        r =  not(str(b0[1]) == str(b1[1]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3]))
+                        if not(r):
+                            break
+                r = r or (not bIn)
+                if r:
                     break
+        ###########
 
         diff2ys = []
         if r:
@@ -168,24 +214,136 @@ def bomTools():
             else:
                 cols2[0].markdown(':red['+BomLineStr(s0)+']')
                 cols2[1].markdown(':red['+BomLineStr(s1)+']')
-            #cols2[0].markdown(':red['+BomLineStr(b0)+']')
+
+            
+            ##############################
+            dict0 = {}
+            dict1 = {}
+            
             d0s = []
-            d0s.append({'id':s0[0], 'name':s0[1], 'cnt':s0[2], 'level':s0[3]})
+            u0 = {'id':s0[0], 'name':s0[1], 'count':str(s0[2]), 'level':s0[3]}
+            d0s.append(u0)
+            dict0[s0[0]] = u0
             for d in sc0:
-                d0s.append({'id':d[0], 'name':d[1], 'cnt':d[2], 'level':d[3]})
+                u0 = {'id':d[0], 'name':d[1], 'count':str(d[2]), 'level':d[3]}
+                d0s.append(u0)
+                dict0[d[0]] = u0
             d0 = pd.DataFrame(d0s)
 
             d1s = []
-            d1s.append({'id':s1[0], 'name':s1[1], 'cnt':s1[2], 'level':s1[3]})
+            u1 = {'id':s1[0], 'name':s1[1], 'count':str(s1[2]), 'level':s1[3]}
+            d1s.append(u1)
+            dict1[s1[0]] = u1
             for d in sc1:
-                d1s.append({'id':d[0], 'name':d[1], 'cnt':d[2], 'level':d[3]})
+                u1 = {'id':d[0], 'name':d[1], 'count':str(d[2]), 'level':d[3]}
+                d1s.append(u1)
+                dict1[d[0]] = u1
             d1 = pd.DataFrame(d1s)
-            color = ((d0.name != d1.name) | (d0.level != d1.level)| (d0.cnt != d1.cnt)).map({True: 'background-color: yellow', False: ''})
-            d0 = d0.style.apply(lambda s: color)
-            d1 = d1.style.apply(lambda s: color)
-            cols2[0].dataframe(d0, use_container_width=True)
-            #cols2[1].markdown(':red['+BomLineStr(b1)+']')
-            cols2[1].dataframe(d1, use_container_width=True)
+
+            td = [s0]+sc0
+            td = [{'id':s0[0], 'name':s0[1], 'count':str(s0[2]), 'level':s0[3]}]
+            for c0 in sc0:
+                td.append({'id':c0[0], 'name':c0[1], 'count':str(c0[2]), 'level':c0[3]})
+            tree0 = generate_tree(solveTreeData(td), 0)
+
+            td = [s1]+sc1
+            td = [{'id':s1[0], 'name':s1[1], 'count':str(s1[2]), 'level':s1[3]}]
+            for c1 in sc1:
+                td.append({'id':c1[0], 'name':c1[1], 'count':str(c1[2]), 'level':c1[3]})
+            tree1 = generate_tree(solveTreeData(td), 0)
+
+            ids0 = dict0.keys()
+            ids1 = dict1.keys()                   
+
+            diffs = compare_trees(tree0[0], tree1[0])
+            if diffs:               
+                rds0 = []
+                rds1 = []
+                rds = []
+                eds = []
+                nullUnit = {'id':None, 'name':None, 'count':None, 'level':None}
+
+                for d0 in d0s:
+                    id0 = d0['id']
+                    u0 = dict0[id0]
+                    if (id0 in ids0) and (id0 in ids1):
+                        if not (id0 in eds):                            
+                            u1 = dict1[id0]
+                            rds0.append(dict0[id0])
+                            rds1.append(dict1[id0])
+                            rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['count'],'level0':u0['level'], 'id1':u1['id'],'name1':u1['name'],'count1':u1['count'],'level1':u1['level']})
+                            eds.append(id0)
+                    else:
+                        rds0.append(dict0[id0])                        
+                        rds1.append(nullUnit)
+                        rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['count'],'level0':u0['level'], 'id1':None,'name1':None,'count1':None,'level1':None})
+                for d1 in d1s:
+                    id1 = d1['id']
+                    u1 = dict1[id1]
+                    if (id1 in ids0) and (id1 in ids1):
+                        if not (id1 in eds):
+                            u0 = dict0[id1]
+                            rds0.append(dict0[id1])
+                            rds1.append(dict1[id1])
+                            rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['count'],'level0':u0['level'], 'id1':u1['id'],'name1':u1['name'],'count1':u1['count'],'level1':u1['level']})
+                            eds.append(id1)
+                    else:
+                        rds0.append(nullUnit)
+                        rds1.append(dict1[id1])
+                        rds.append( {'id0':None,'name0':None,'count0':None,'level0':None, 'id1':u1['id'],'name1':u1['name'],'count1':u1['count'],'level1':u1['level']})
+                d0 = pd.DataFrame(rds0)
+                d1 = pd.DataFrame(rds1)                
+                color = ((d0.name != d1.name) | (d0['count'] != d1['count']) | (d0.level != d1.level)).map({True: 'background-color: yellow', False: ''})
+                d0 = d0.style.apply(lambda s: color)
+                d1 = d1.style.apply(lambda s: color)
+                d = pd.DataFrame(rds)
+                color = ((d.name0 != d.name1) | (d.count0 != d.count1) | (d.level0 != d.level1)).map({True: 'background-color: yellow', False: ''})
+                d = d.style.apply(lambda s: color)
+                container.dataframe(d, use_container_width=True)                          
+                        
+                diffDatas0 = [] #[{'零件编号':s0[0], '零件名称':s0[1], '数量':s0[2], '层级':s0[3]}]
+                diffDatas1 = [] #[{'零件编号':s1[0], '零件名称':s1[1], '数量':s1[2], '层级':s1[3]}]
+                for diff in diffs:
+                    t1 = diff['tree1']
+                    t2 = diff['tree2']
+                    diffData0 = {'零件编号':None, '零件名称':None, '数量':None, '层级':None}
+                    diffData1 = {'零件编号':None, '零件名称':None, '数量':None, '层级':None}
+                    if t1:
+                        diffData0['零件编号'] = t1['id']
+                        diffData0['零件名称'] = t1['name']
+                        diffData0['数量'] = t1['count']
+                        diffData0['层级'] = t1['level']
+                    if t2:
+                        diffData1['零件编号'] = t2['id']
+                        diffData1['零件名称'] = t2['name']
+                        diffData1['数量'] = t2['count']
+                        diffData1['层级'] = t2['level']
+                    diffDatas0.append(diffData0)
+                    diffDatas1.append(diffData1)
+                cols2 = container.columns(2)
+                cols2[0].dataframe(diffDatas0, use_container_width=True)
+                cols2[1].dataframe(diffDatas1, use_container_width=True)            
+            ##############################
+            if 0:
+                d0s = []
+                d0s.append({'id':s0[0], 'name':s0[1], 'count':s0[2], 'level':s0[3]})
+                for d in sc0:
+                    d0s.append({'id':d[0], 'name':d[1], 'count':d[2], 'level':d[3]})
+                d0 = pd.DataFrame(d0s)
+
+                d1s = []
+                d1s.append({'id':s1[0], 'name':s1[1], 'count':s1[2], 'level':s1[3]})
+                for d in sc1:
+                    d1s.append({'id':d[0], 'name':d[1], 'count':d[2], 'level':d[3]})
+                d1 = pd.DataFrame(d1s)
+                d0
+                d1
+                color = ((d0.name != d1.name) | (d0.level != d1.level)| (d0['count'] != d1['count'])).map({True: 'background-color: yellow', False: ''})
+                d0 = d0.style.apply(lambda s: color)
+                d1 = d1.style.apply(lambda s: color)
+                cols2[0].dataframe(d0, use_container_width=True)
+                #cols2[1].markdown(':red['+BomLineStr(b1)+']')
+                cols2[1].dataframe(d1, use_container_width=True)
 
 
             td = [s0]+sc0
@@ -227,7 +385,154 @@ def bomTools():
         else:
             if not (s0[1] == s1[1]):
                 cols1[0].markdown(':red['+BomLineStr(s0)+']')
-                cols1[1].markdown(':red['+BomLineStr(s1)+']')    
+                cols1[1].markdown(':red['+BomLineStr(s1)+']') 
+
+    def SystemDiff(ss0, ss1, container):
+        diffDatas = []
+        with container:
+            try:
+                if ss0 and ss1:            
+                    s0 = ss0['sys']
+                    s1 = ss1['sys']
+                    sc0 = ss0['children']
+                    sc1 = ss1['children']
+                    
+                    r = False
+                    n0 = len(sc0)
+                    n1 = len(sc1)
+                    for i in range(0,n0):
+                        b0 = sc0[i]
+                        id0 = b0[0]            
+                        bIn = False
+                        for j in range(0, n1):                
+                            b1 = sc1[j]
+                            id1 = b1[0]
+                            if (id0 == id1):
+                                bIn = True
+                                r =  not(str(b0[1]) == str(b1[1]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3]))
+                                if not(r):
+                                    break
+                        r = r or (not bIn)
+                        if r:
+                            break 
+                    if not r:
+                        for i in range(0,n1):
+                            b1 = sc1[i]
+                            id1 = b1[0]            
+                            bIn = False
+                            for j in range(0, n0):                
+                                b0 = sc0[j]
+                                id0 = b0[0]
+                                if (id0 == id1):
+                                    bIn = True
+                                    r =  not(str(b0[1]) == str(b1[1]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3]))
+                                    if not(r):
+                                        break
+                            r = r or (not bIn)
+                            if r:
+                                break               
+                    if r:
+                        dict0 = {}
+                        dict1 = {}
+                        
+                        d0s = []
+                        u0 = {'id':s0[0], 'name':s0[1], 'count':str(s0[2]), 'level':s0[3], 'user':s0[4]}
+                        d0s.append(u0)
+                        dict0[s0[0]] = u0
+                        for d in sc0:
+                            u0 = {'id':d[0], 'name':d[1], 'count':str(d[2]), 'level':d[3], 'user':d[4]}
+                            d0s.append(u0)
+                            dict0[d[0]] = u0
+                        d0 = pd.DataFrame(d0s)
+
+                        d1s = []
+                        u1 = {'id':s1[0], 'name':s1[1], 'count':str(s1[2]), 'level':s1[3], 'user':s1[4]}
+                        d1s.append(u1)
+                        dict1[s1[0]] = u1
+                        for d in sc1:
+                            u1 = {'id':d[0], 'name':d[1], 'count':str(d[2]), 'level':d[3], 'user':d[4]}
+                            d1s.append(u1)
+                            dict1[d[0]] = u1
+                        d1 = pd.DataFrame(d1s)
+
+                        td = [s0]+sc0
+                        td = [{'id':s0[0], 'name':s0[1], 'count':str(s0[2]), 'level':s0[3], 'user':s0[4]}]
+                        for c0 in sc0:
+                            td.append({'id':c0[0], 'name':c0[1], 'count':str(c0[2]), 'level':c0[3], 'user':c0[4]})
+                        tree0 = generate_tree(solveTreeData(td), 0)
+
+                        td = [s1]+sc1
+                        td = [{'id':s1[0], 'name':s1[1], 'count':str(s1[2]), 'level':s1[3], 'user':s1[4]}]
+                        for c1 in sc1:
+                            td.append({'id':c1[0], 'name':c1[1], 'count':str(c1[2]), 'level':c1[3], 'user':c1[4]})
+                        tree1 = generate_tree(solveTreeData(td), 0)
+
+                        ids0 = dict0.keys()
+                        ids1 = dict1.keys()                   
+
+                        diffs = compare_trees(tree0[0], tree1[0])
+                        if diffs:
+                            for diff in diffs:
+                                t1 = diff['tree1']
+                                t2 = diff['tree2']
+                                diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                                if t1:
+                                    diffData['零件编号1'] = t1['id']
+                                    diffData['零件名称1'] = t1['name']
+                                    diffData['数量1'] = t1['count']
+                                    diffData['层级1'] = t1['level']
+                                    diffData['工程师1'] = t1['user']
+                                    diffData['备注1'] = ''
+                                if t2:
+                                    diffData['零件编号2'] = t2['id']
+                                    diffData['零件名称2'] = t2['name']
+                                    diffData['数量2'] = t2['count']
+                                    diffData['层级2'] = t2['level']
+                                    diffData['备注2'] = ''
+                                diffDatas.append(diffData)
+                            #container.dataframe(diffDatas, use_container_width=True)
+                        else:
+                            pass
+                            #'Error: No diffs 1'
+                    else:
+                        pass
+                        #'Error: No diffs 2' 
+                elif ss0:
+                    s0 = ss0['sys']
+                    sc0 = ss0['children']                    
+                    diffData = {'零件编号1':s0[0], '零件名称1':s0[1], '数量1':s0[2], '层级1':s0[3],'工程师1':s0[4],'备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                    diffDatas.append(diffData)
+                    for c0 in sc0:
+                        diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                        diffData['零件编号1'] = c0[0]
+                        diffData['零件名称1'] = c0[1]
+                        diffData['数量1'] = c0[2]
+                        diffData['层级1'] = c0[3]
+                        diffData['工程师1'] = c0[4]
+                        diffData['备注1'] = ''
+                        diffDatas.append(diffData)
+                elif ss1:   
+                    s1 = ss1['sys']
+                    sc1 = ss1['children']                    
+                    diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':s1[0], '零件名称2':s1[1], '数量2':s1[2], '层级2':s1[3],'备注2':''}
+                    diffDatas.append(diffData)
+                    for c1 in sc1:
+                        diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                        diffData['零件编号2'] = c1[0]
+                        diffData['零件名称2'] = c1[1]
+                        diffData['数量2'] = c1[2]
+                        diffData['层级2'] = c1[3]
+                        diffData['备注2'] = ''
+                        diffDatas.append(diffData)
+            except Exception as e:
+                'Error: 出错了！'
+                #e
+                col1, col2 = st.columns(2)
+                with col1:
+                    'ss0:',ss0
+                with col2:
+                    'ss1:',ss1
+        return diffDatas
 
     def SystemChildrenDiff(ss0, ss1, cols1, cols2, container):
         s0 = ss0['sys']
@@ -238,6 +543,7 @@ def bomTools():
         r = False
         n0 = len(sc0)
         n1 = len(sc1)
+        
         for i in range(0,n0):
             b0 = sc0[i]
             id0 = b0[0]            
@@ -252,7 +558,24 @@ def bomTools():
                         break
             r = r or (not bIn)
             if r:
-                break                
+                break 
+
+        if not r:
+            for i in range(0,n1):
+                b1 = sc1[i]
+                id1 = b1[0]            
+                bIn = False
+                for j in range(0, n0):                
+                    b0 = sc0[j]
+                    id0 = b0[0]
+                    if (id0 == id1):
+                        bIn = True
+                        r =  not(str(b0[1]) == str(b1[1]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3]))
+                        if not(r):
+                            break
+                r = r or (not bIn)
+                if r:
+                    break               
 
         diff2ys = []
         if r:
@@ -262,52 +585,41 @@ def bomTools():
                 cols2[1].markdown(':blue['+BomLineStr(s1)+']')
             else:
                 cols2[0].markdown(':red['+BomLineStr(s0)+']')
-                cols2[1].markdown(':red['+BomLineStr(s1)+']')            
+                cols2[1].markdown(':red['+BomLineStr(s1)+']')  
+
             dict0 = {}
             dict1 = {}
             
             d0s = []
-            u0 = {'id':s0[0], 'name':s0[1], 'cnt':str(s0[2]), 'level':s0[3]}
+            u0 = {'id':s0[0], 'name':s0[1], 'count':str(s0[2]), 'level':s0[3]}
             d0s.append(u0)
             dict0[s0[0]] = u0
             for d in sc0:
-                u0 = {'id':d[0], 'name':d[1], 'cnt':str(d[2]), 'level':d[3]}
+                u0 = {'id':d[0], 'name':d[1], 'count':str(d[2]), 'level':d[3]}
                 d0s.append(u0)
                 dict0[d[0]] = u0
             d0 = pd.DataFrame(d0s)
 
             d1s = []
-            u1 = {'id':s1[0], 'name':s1[1], 'cnt':str(s1[2]), 'level':s1[3]}
+            u1 = {'id':s1[0], 'name':s1[1], 'count':str(s1[2]), 'level':s1[3]}
             d1s.append(u1)
             dict1[s1[0]] = u1
             for d in sc1:
-                u1 = {'id':d[0], 'name':d[1], 'cnt':str(d[2]), 'level':d[3]}
+                u1 = {'id':d[0], 'name':d[1], 'count':str(d[2]), 'level':d[3]}
                 d1s.append(u1)
                 dict1[d[0]] = u1
             d1 = pd.DataFrame(d1s)
 
-            #st.dataframe(d0s)
-            #st.dataframe(d1s)
-            
-            #color = ((d0.name != d1.name) | (d0.level != d1.level)).map({True: 'background-color: yellow', False: ''})
-            #d0 = d0.style.apply(lambda s: color)
-            #d1 = d1.style.apply(lambda s: color)
-            #cols2[0].markdown(':red['+BomLineStr(b0)+']')
-            #cols2[0].dataframe(d0, use_container_width=True)
-            #cols2[1].markdown(':red['+BomLineStr(b1)+']')
-            #cols2[1].dataframe(d1, use_container_width=True)
-
-
             td = [s0]+sc0
-            td = [{'id':s0[0], 'name':s0[1], 'cnt':str(s0[2]), 'level':s0[3]}]
+            td = [{'id':s0[0], 'name':s0[1], 'count':str(s0[2]), 'level':s0[3]}]
             for c0 in sc0:
-                td.append({'id':c0[0], 'name':c0[1], 'cnt':str(c0[2]), 'level':c0[3]})
+                td.append({'id':c0[0], 'name':c0[1], 'count':str(c0[2]), 'level':c0[3]})
             tree0 = generate_tree(solveTreeData(td), 0)
 
             td = [s1]+sc1
-            td = [{'id':s1[0], 'name':s1[1], 'cnt':str(s1[2]), 'level':s1[3]}]
+            td = [{'id':s1[0], 'name':s1[1], 'count':str(s1[2]), 'level':s1[3]}]
             for c1 in sc1:
-                td.append({'id':c1[0], 'name':c1[1], 'cnt':str(c1[2]), 'level':c1[3]})
+                td.append({'id':c1[0], 'name':c1[1], 'count':str(c1[2]), 'level':c1[3]})
             tree1 = generate_tree(solveTreeData(td), 0)
 
             ids0 = dict0.keys()
@@ -319,7 +631,7 @@ def bomTools():
                 rds1 = []
                 rds = []
                 eds = []
-                nullUnit = {'id':None, 'name':None, 'cnt':None, 'level':None}
+                nullUnit = {'id':None, 'name':None, 'count':None, 'level':None}
 
                 for d0 in d0s:
                     id0 = d0['id']
@@ -329,12 +641,12 @@ def bomTools():
                             u1 = dict1[id0]
                             rds0.append(dict0[id0])
                             rds1.append(dict1[id0])
-                            rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['cnt'],'level0':u0['level'], 'id1':u1['id'],'name1':u1['name'],'count1':u1['cnt'],'level1':u1['level']})
+                            rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['count'],'level0':u0['level'], 'id1':u1['id'],'name1':u1['name'],'count1':u1['count'],'level1':u1['level']})
                             eds.append(id0)
                     else:
                         rds0.append(dict0[id0])                        
                         rds1.append(nullUnit)
-                        rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['cnt'],'level0':u0['level'], 'id1':None,'name1':None,'count1':None,'level1':None})
+                        rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['count'],'level0':u0['level'], 'id1':None,'name1':None,'count1':None,'level1':None})
                 for d1 in d1s:
                     id1 = d1['id']
                     u1 = dict1[id1]
@@ -343,34 +655,21 @@ def bomTools():
                             u0 = dict0[id1]
                             rds0.append(dict0[id1])
                             rds1.append(dict1[id1])
-                            rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['cnt'],'level0':u0['level'], 'id1':u1['id'],'name1':u1['name'],'count1':u1['cnt'],'level1':u1['level']})
+                            rds.append({'id0':u0['id'],'name0':u0['name'],'count0':u0['count'],'level0':u0['level'], 'id1':u1['id'],'name1':u1['name'],'count1':u1['count'],'level1':u1['level']})
                             eds.append(id1)
                     else:
                         rds0.append(nullUnit)
                         rds1.append(dict1[id1])
-                        rds.append( {'id0':None,'name0':None,'count0':None,'level0':None, 'id1':u1['id'],'name1':u1['name'],'count1':u1['cnt'],'level1':u1['level']})
-
-                #st.write(rds0)
-                #st.write(rds1)
-
-                #st.dataframe(d0s)
-                #st.dataframe(d1s)
-
+                        rds.append( {'id0':None,'name0':None,'count0':None,'level0':None, 'id1':u1['id'],'name1':u1['name'],'count1':u1['count'],'level1':u1['level']})
                 d0 = pd.DataFrame(rds0)
-                d1 = pd.DataFrame(rds1)
-                
-                color = ((d0.name != d1.name) | (d0.cnt != d1.cnt) | (d0.level != d1.level)).map({True: 'background-color: yellow', False: ''})
+                d1 = pd.DataFrame(rds1)                
+                color = ((d0.name != d1.name) | (d0['count'] != d1['count']) | (d0.level != d1.level)).map({True: 'background-color: yellow', False: ''})
                 d0 = d0.style.apply(lambda s: color)
                 d1 = d1.style.apply(lambda s: color)
-                #cols2[0].markdown(':red['+BomLineStr(b0)+']')
-                #cols2[0].dataframe(d0, use_container_width=True)
-                #cols2[1].markdown(':red['+BomLineStr(b1)+']')
-                #cols2[1].dataframe(d1, use_container_width=True)
-
                 d = pd.DataFrame(rds)
                 color = ((d.name0 != d.name1) | (d.count0 != d.count1) | (d.level0 != d.level1)).map({True: 'background-color: yellow', False: ''})
                 d = d.style.apply(lambda s: color)
-                container.dataframe(d, use_container_width=True)                            
+                container.dataframe(d, use_container_width=True)                          
                         
                 diffDatas0 = [] #[{'零件编号':s0[0], '零件名称':s0[1], '数量':s0[2], '层级':s0[3]}]
                 diffDatas1 = [] #[{'零件编号':s1[0], '零件名称':s1[1], '数量':s1[2], '层级':s1[3]}]
@@ -382,12 +681,12 @@ def bomTools():
                     if t1:
                         diffData0['零件编号'] = t1['id']
                         diffData0['零件名称'] = t1['name']
-                        diffData0['数量'] = t1['cnt']
+                        diffData0['数量'] = t1['count']
                         diffData0['层级'] = t1['level']
                     if t2:
                         diffData1['零件编号'] = t2['id']
                         diffData1['零件名称'] = t2['name']
-                        diffData1['数量'] = t2['cnt']
+                        diffData1['数量'] = t2['count']
                         diffData1['层级'] = t2['level']
                     diffDatas0.append(diffData0)
                     diffDatas1.append(diffData1)
@@ -500,6 +799,9 @@ def bomTools():
                     if not (lastErrId == eid):
                         lastErrId = eid
                         st.markdown(':red[严重数据错误!!!]')
+                        #'leafData:', leafData
+                        #'lastErrId:', lastErrId
+                        #'lastTreeNodes:', lastTreeNodes
                         st.dataframe(treeData)
                 
             treeDatas.append(leafData) 
@@ -657,14 +959,202 @@ def bomTools():
                                 diffData['level2'] = t2['level']
                             diffDatas.append(diffData)
                     if diffDatas:        
-                        st.dataframe(diffDatas)
+                        st.dataframe(diffDatas, use_container_width=True)
                     else:
                         st.write('无差异')
 
     def ShowBomDatabaseProblems():
         with st.expander('核对不同2Y号具有相同结构的问题'):
             if st.button('开始核查'):
-                CheckErrorSystems()    
+                CheckErrorSystems()
+
+    def showDiffSheetTool():
+        st.header('BOM差异件清单生成工具') 
+
+        eboms1 = {}
+        eboms2 = {}
+        ebomFile1 = ''
+        ebomFile2 = ''
+
+        if 'ebomFile1' in st.session_state:
+            ebomFile1 = st.session_state['ebomFile1']
+        if 'ebomFile2' in st.session_state:
+            ebomFile2 = st.session_state['ebomFile2']
+        if 'eboms1' in st.session_state:
+            eboms1 = st.session_state['eboms1']
+        if 'eboms2' in st.session_state:
+            eboms2 = st.session_state['eboms2']
+
+        col1,col2 = st.columns(2)
+
+        loadBar = st.progress(0, text='')
+
+        uploaded_file1 = col1.file_uploader("上传EBOM清单1", type=["xlsx"])
+        uploaded_file2 = col2.file_uploader("上传EBOM清单2", type=["xlsx"])
+        if uploaded_file1 is not None:
+            fname = uploaded_file1.name            
+            if not (ebomFile1 == fname):
+                st.session_state['ebomFile1'] = fname
+                df = pd.read_excel(uploaded_file1, header=9)                
+                try:
+                    loc1 = df.columns.get_loc('备注')
+                    loc2 = df.columns.get_loc('CMAN')
+                    tpNames = []
+                    ks = df.keys()
+                    for i in range(loc1+1, loc2):
+                        tpNames.append(ks[i])
+                    keys = ['零件编号','零件名称','数量','层级','负责人员'] + tpNames
+                    tdf = df[keys]
+                    for tpName in tpNames:
+                        tpDf = tdf.query('%s == "●"' % tpName)
+                        bomArray = tpDf.values
+                        systems = {}
+                        system = None
+                        n = len(bomArray)
+                        i = 0
+                        for bomLine in bomArray:
+                            sysName = bomLine[1]
+                            sysLevel = bomLine[3]
+                            if sysLevel == '2Y':
+                                system = {'sys':bomLine , 'children':[]}
+                                systems[sysName] = system
+                            else:
+                                if system:
+                                    system['children'].append(bomLine)
+                            i += 1
+                            pText = '加载车型[%s] (%d/%d) 完成！'% (tpName, i, n)
+                            loadBar.progress(float(i)/float(n), text='')
+                        eboms1[tpName] = systems
+                except Exception as e:
+                    #pText = '加载Ebom[%s]失败，格式不正确'%sheetName
+                    #st.write(pText)
+                    e
+                    pass
+                finally:
+                    st.session_state['eboms1'] = eboms1
+            ebomFile1 = fname
+            st.success('EBOM1:%s已上传完成' % fname)
+        if uploaded_file2 is not None:
+            fname = uploaded_file2.name
+            if not (ebomFile2 == fname):
+                st.session_state['ebomFile2'] = fname
+                df = pd.read_excel(uploaded_file2, header=9)                
+                try:
+                    loc1 = df.columns.get_loc('备注')
+                    loc2 = df.columns.get_loc('CMAN')
+                    tpNames = []
+                    ks = df.keys()
+                    for i in range(loc1+1, loc2):
+                        tpNames.append(ks[i])
+                    keys = ['零件编号','零件名称','数量','层级','负责人员'] + tpNames                    
+                    tdf = df[keys]                    
+                    for tpName in tpNames:
+                        tpDf = tdf.query('%s == "●"' % tpName)
+                        bomArray = tpDf.values
+                        systems = {}
+                        system = None
+                        n = len(bomArray)
+                        i = 0
+                        for bomLine in bomArray:
+                            sysName = bomLine[1]
+                            sysLevel = bomLine[3]
+                            if sysLevel == '2Y':
+                                system = {'sys':bomLine , 'children':[]}
+                                systems[sysName] = system
+                            else:
+                                if system:
+                                    system['children'].append(bomLine)
+                            i += 1
+                            pText = '加载车型[%s] (%d/%d) 完成！'% (tpName, i, n)
+                            loadBar.progress(float(i)/float(n), text='')
+                        eboms2[tpName] = systems
+                except Exception as e:
+                    #pText = '加载Ebom[%s]失败，格式不正确'%sheetName
+                    #st.write(pText)
+                    e
+                    pass
+                finally:
+                    st.session_state['eboms2'] = eboms2
+            ebomFile1 = fname
+            st.success('EBOM2:%s已上传完成' % fname)      
+        bomKeys1 = list(eboms1.keys())
+        bomKeys2 = list(eboms2.keys())
+        if bomKeys1 and bomKeys2:        
+            st.subheader('通过两个ebom生成差异件清单')
+            cols = st.columns(2)            
+            bk1 = cols[0].selectbox('选择第一个ebom中的版型：',bomKeys1)
+            bk2 = cols[1].selectbox('选择第二个ebom中的版型：',bomKeys2)
+            st.write('BOM清单比对结果：')
+            loadBar = st.progress(0, text='')
+            cols = st.columns(2)
+            cols[0].header(bk1)
+            cols[1].header(bk2)
+            ep = st.expander("差异件清单")
+            cols = ep.columns(2)
+            bom0 = eboms1[bk1]
+            bom1 = eboms2[bk2]
+            sns0 = list(bom0.keys())
+            sns1 = list(bom1.keys())
+            
+            allDiffData = []
+
+            n = len(sns1)
+            i = 0
+            for sn in sns1:
+                ss1 = bom1[sn]
+                sid1 = ss1['sys'][0]                    
+                if sn in sns0:
+                    ss0 = bom0[sn]
+                    sid0 = ss0['sys'][0]
+                    if not(sid0 == sid1):
+                        allDiffData += SystemDiff(ss0, ss1, ep)
+                else:
+                    allDiffData += SystemDiff(None, ss1, ep)                        
+                i += 1                    
+                pText = '生成进度： (%d/%d)'%(i, n)
+                loadBar.progress(float(i)/float(n), text=pText)
+
+            n = len(sns0)
+            i = 0
+            for sn in sns0:
+                if sn in sns1:
+                    continue
+                ss0 = bom0[sn]
+                sid0 = ss0['sys'][0]                    
+                if sn in sns1:
+                    ss1 = bom1[sn]
+                    sid1 = ss1['sys'][0]
+                    if not(sid0 == sid1):
+                        allDiffData += SystemDiff(ss0, ss1, ep)
+                else:
+                    allDiffData += SystemDiff(ss0, None, ep)
+                i += 1                    
+                pText = '生成进度： (%d/%d)'%(i, n)
+                loadBar.progress(float(i)/float(n), text=pText)
+            loadBar.progress(1.0, text='【:blue[%s]】与【:blue[%s]】差异件清单生成完成!' % (bk1, bk2))
+            if allDiffData:
+                df = pd.DataFrame(allDiffData)
+                color = ((df['层级1'] == '2Y') | (df['层级2'] == '2Y')).map({True: 'background-color: #EEEE99', False: ''})
+                cdf = df.style.apply(lambda s: color)
+                df = df.set_index('零件编号1')
+                ep.dataframe(cdf, use_container_width=True)
+                import io
+                buffer = io.BytesIO()
+                ef1 = ebomFile1.split('.')[0]
+                ef2 = ebomFile2.split('.')[0]
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, sheet_name='Sheet1', index=False)
+                    writer.save()
+                    fileName= '%s(%s)_%s(%s)_差异件清单.xlsx' % (ef1, bk1, ef2, bk2)
+                    ep.write(fileName)
+                    ep.download_button(
+                        label="下载差异件清单",
+                        data=buffer,
+                        file_name=fileName,
+                        mime='application/vnd.ms-excel'
+                        )  
+            else:
+                ep.write('所选两个配置EBOM无差异')                       
 
     def ShowBomDiffSheets():
         boms = {}
@@ -735,13 +1225,12 @@ def bomTools():
                 bom1 = boms[bk2]
                 sns0 = list(bom0.keys())
                 sns1 = list(bom1.keys())
-
                 n = len(sns1)
                 i = 0
                 for sn in sns1:
                     if sn in sns0:
                         ss0 = bom0[sn]
-                        ss1 = bom1[sn]                
+                        ss1 = bom1[sn]              
                         SystemChildrenDiff(ss0, ss1, cols1, cols2, ep2)  
                         #    cols[0].write(ss0)
                         #    cols[1].write(ss1)
@@ -775,7 +1264,7 @@ def bomTools():
             if not (checkEBomFile == fname):
                 st.write('原EBOM文件: %s 新上传EBOM文件: %s' % (checkEBomFile, fname))
                 st.session_state['checkEBomFile'] = fname
-                df_ebom = pd.read_excel(uploaded_file, header=9)
+                df_ebom = pd.read_excel(uploaded_ebom, header=9)
             else:
                 st.write('EBOM文件: %s 已上传' % fname)
         else:
@@ -790,7 +1279,194 @@ def bomTools():
                 st.session_state['checkDiffFile'] = fname
             else:
                 st.write('EBOM文件: %s 已上传' % fname)
-        
+
+    def showECTTool():
+        st.header('工程配置工具')  
+
+        df_ect = pd.DataFrame()
+        ectFile = ''
+        if 'ectFile' in st.session_state:
+            ectFile = st.session_state['ectFile']
+        if 'df_ect' in st.session_state:
+            df_ect = st.session_state['df_ect']
+
+        uploaded_file = st.file_uploader("上传工程配置表", type=["xlsx"])
+        if uploaded_file is not None:
+            fname = uploaded_file.name
+            if ectFile == fname:
+                st.write('工程配置表文件: %s 已上传' % fname)                
+            else:
+                st.session_state['ectFile'] = fname
+                df_ect = pd.read_excel(uploaded_file, header=2, usecols=[0,2,6,7,8,9,10,11])
+                st.session_state['df_ect'] = df_ect
+        if df_ect.empty:
+            '工程配置数据为空，请上传数据'
+        else:
+            df_ect
+            tdf = df_ect.groupby('专业部门',as_index=False).count()['专业部门']
+            ops = list(tdf.values)
+            dept = st.selectbox('专业部门', ops)
+            #q = 'GPC == %s and FND == "%s"' % (gpc, fnd)
+            q = '专业部门 == "%s"' % dept
+            df_dept = df_ect.query(q)
+            tdf = df_dept.groupby('分类',as_index=False).count()['分类']
+            ops = list(tdf.values)
+            cls = st.selectbox('分类', ops)
+            q = '分类 == "%s"' % cls
+            df_cls = df_dept.query(q)
+            df_cls
+            tdf = df_cls.groupby(['特征族代码','特征族描述（中文）'],as_index=False).count()['特征族描述（中文）']
+            ops = list(tdf.values)
+            
+    def showLOUTool():
+        st.header('LOU核查工具')
+        df_sys = pd.DataFrame()
+        df_ect = pd.DataFrame()
+        sysFile = ''
+        ectFile = ''
+        if 'sysFile' in st.session_state:
+            sysFile = st.session_state['sysFile']
+        if 'df_sys' in st.session_state:
+            df_sys = st.session_state['df_sys']
+        if 'ectFile' in st.session_state:
+            ectFile = st.session_state['ectFile']
+        if 'df_ect' in st.session_state:
+            df_ect = st.session_state['df_ect']
+
+        col1, col2 = st.columns(2)
+
+        uploaded_file_sys = col1.file_uploader("上传CPAC&FND查询表", type=["xlsx"])
+        if uploaded_file_sys is not None:
+            fname = uploaded_file_sys.name
+            if not (sysFile == fname):
+                st.session_state['sysFile'] = fname
+                df = pd.read_excel(uploaded_file_sys, header=2) 
+                columns = ['归口专业','CPAC','CPAC_CN','CPAC_EN','FND','FND_CN','FND_EN','GPC','关键件/重要件','是否紧固件','法规件名称',
+                        '品类代码','品类描述','平台关键总成','本色件标识','是否精确追溯件','度量单位','是否法规件','备注']
+                df.columns = columns
+                lines = df.values
+                lastCPAC = None
+                for line in lines:
+                    cpac = line[1]
+                    if pd.isna(cpac):
+                        line[1:4] = lastCPAC                  
+                    else:
+                        lastCPAC = line[1:4]   
+                df_sys = pd.DataFrame(lines)
+                df_sys.columns = columns
+                values = {'FND_EN': '/'}
+                df_sys.fillna(value=values,inplace=True)
+                st.session_state['df_sys'] = df_sys
+            st.success('产品架构查询文件: %s 已上传' % fname)
+
+        uploaded_file_ect = col2.file_uploader("上传工程配置表", type=["xlsx"])
+        if uploaded_file_ect is not None:
+            fname = uploaded_file_ect.name
+            if not (ectFile == fname):
+                st.session_state['ectFile'] = fname
+                df = pd.read_excel(uploaded_file_ect, header=2, usecols=[10])                 
+                #columns = ['归口专业','CPAC','CPAC_CN','CPAC_EN','FND','FND_CN','FND_EN','GPC','关键件/重要件','是否紧固件','法规件名称',
+                #        '品类代码','品类描述','平台关键总成','本色件标识','是否精确追溯件','度量单位','是否法规件','备注']
+                #df.columns = columns
+                df_ect = df
+                st.session_state['df_ect'] = df_ect
+                #lines = df.values
+                #lastCPAC = None
+                #for line in lines:
+                #    cpac = line[1]
+                #    if pd.isna(cpac):
+                #        line[1:4] = lastCPAC                  
+                #    else:
+                #        lastCPAC = line[1:4]   
+                #df_ect = pd.DataFrame(lines)
+                #df_sys.columns = columns
+                #st.session_state['df_sys'] = df_sys
+            st.success('工程配置表文件: %s 已上传' % fname)
+
+        if df_sys.empty or df_ect.empty:
+            if df_sys.empty:
+                st.warning('请上传CPAC&FND查询表')
+            if df_ect.empty:
+                st.warning('请上传工程配置表')
+        else:
+            ectValues = list(df_ect.iloc[:, 0].values)                        
+            uploaded_lou = st.file_uploader("上传进行核对的LOU清单", type=["xlsx"])
+            if uploaded_lou is not None:
+                #df_lou = pd.read_excel(uploaded_lou, header=8, usecols=range(0,21)) 
+                #df_lou.columns = ['序号','更改说明','查找编号','产品类型','车辆系列','CPAC','CPAC_CN','备注','零件号',
+                #                  '零件名称','GPC','FND','FND_CN','FND_EN','用量','度量单位','零件成熟度',
+                #                  '替换件零件号','是否成套替换','LOU用法','用法（代码）'] 
+                df_lou = pd.read_excel(uploaded_lou, header=8, usecols=[5,6,8,9,10,11,12,13,14,19]) 
+                df_lou.columns = ['CPAC','CPAC_CN','零件号','零件名称','GPC','FND','FND_CN','FND_EN','用量','LOU用法'] 
+                values = {'CPAC_CN': '/','FND_EN':'/','FND_CN':'/','LOU用法':'/'}
+                df_lou.fillna(value=values,inplace=True) 
+                lines = df_lou.values
+                #'df_sys', df_sys                
+                i = 0
+                n = len(lines)
+                bar = st.progress(float(i) / float(n))
+                '*' * 100
+                for line in lines:
+                    cpac = line[0]                    
+                    gpc = line[4]
+                    fnd = line[5]
+                    fnd_cn = line[6].strip()
+                    louStr_o = line[9]
+
+                    lineError = False
+                    louErrors = []  
+                    louStr_o = str(louStr_o)                  
+                    if ' ' in louStr_o:
+                        louErrors.append('含有非法字符：:red[空格]')
+                    if '(' in louStr_o:
+                        louErrors.append('含有非法字符：:red[左括号(英文)]')
+                    if ')' in louStr_o:
+                        louErrors.append('含有非法字符：:red[右括号(英文)]')                    
+                    louList = []
+                    louStr = louStr_o.replace('(','').replace('（','').replace(')','').replace('）','').replace(' ','')
+                    ss1 = louStr.split('&')
+                    for s1 in ss1:
+                        ss2 = s1.split('|')
+                        for s2 in ss2:
+                            louList.append(s2)
+                    for s in louList:
+                        if s not in ectValues:
+                            louErrors.append('不是合法的特征值：:red[%s]' % s)
+                    if louErrors:
+                        lineError = True
+                        '第%d行 lou用法 :blue[%s] 中有如下错误：' % (i, louStr_o)
+                        for err in louErrors:                       
+                            st.markdown(err)
+
+                    q = 'GPC == "%s" and FND == "%s"' % (gpc, fnd) 
+                    if type(gpc) is int:
+                        q = 'GPC == %s and FND == "%s"' % (gpc, fnd)
+                    r = df_sys.query(q)                    
+                    if len(r) == 0:
+                        ':red[Error]: 第%d行 GPC: %s FND: %s 在系统表中不存在' % (i, gpc, fnd)
+                        'LOU - [cpac] %s [fnd_cn] %s' % (cpac, fnd_cn)
+                        lineError = True
+                    else:
+                        sys_line = r.values[0]
+                        cpac_sys = sys_line[1]
+                        fnd_cn_sys = sys_line[5]
+                        cls = ['blue', 'blue']
+                        if not (cpac == cpac_sys):
+                            cls[0] = 'red'
+                        if not (fnd_cn == fnd_cn_sys):
+                            cls[1] = 'red'
+                        if not (cpac == cpac_sys) or not (fnd_cn == fnd_cn_sys): 
+                            st.write(':red[Error]: 第%d行 GPC: %s FND: %s' % (i, gpc, fnd))
+                            'LOU - [cpac] :%s[%s] [fnd_cn] :%s[%s]' % (cls[0], cpac, cls[1], fnd_cn)
+                            'SYS - [cpac] :%s[%s] [fnd_cn] :%s[%s]' % (cls[0], cpac_sys, cls[1], fnd_cn_sys)
+                            lineError = True 
+                    if lineError:
+                        '*' * 100
+                    i += 1
+                    bar.progress(float(i) / float(n))
+                #data = df_lou.to_csv(r'errors.csv', index=False, encoding='gbk')
+                #st.download_button('下载错误列表', data, 'errors.csv')
+
 
     from openpyxl import load_workbook
     from openpyxl import Workbook
@@ -966,7 +1642,7 @@ def bomTools():
             n = len(sns)
             for sn in sns:
                 ss = bom[sn]                
-                SystemChildrenDiff_DB(ss, cols1, cols2)
+                SystemChildrenDiff_DB(ss, cols1, cols2, ep2)
                 i += 1
                 pText = '核对进度： (%d/%d)'%(i, n)
                 loadBar.progress(float(i)/float(n), text=pText)
@@ -982,6 +1658,12 @@ def bomTools():
         ShowBomDiffDatabase()
     elif s =='CMAN统计工具':
         showCMANTool()
+    elif s == '差异件清单生成':
+        showDiffSheetTool()
+    elif s == 'LOU核查工具':
+        showLOUTool()
+    elif s == '工程配置工具':
+        showECTTool()
     elif s == 'BOM差异件核对':
         showBOMDiffTool()
     else:
