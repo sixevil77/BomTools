@@ -2,3 +2,4 @@ tinydb
 tinydb_serialization
 plotly
 openpyxl
+XlsxWriter
