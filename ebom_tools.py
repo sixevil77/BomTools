@@ -1143,7 +1143,13 @@ def bomTools():
                 ef1 = ebomFile1.split('.')[0]
                 ef2 = ebomFile2.split('.')[0]
                 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, sheet_name='Sheet1', index=False)
+                    #workbook = writer.book
+                    #formatCenter = workbook.add_format({'align':'center','font_color': '#0000FF'})
+                    sheet_new = 'Sheet1'
+                    cdf.to_excel(writer, sheet_name=sheet_new, index=False)
+                    #worksheet=writer.sheets[sheet_new]
+                    #worksheet.set_column('C:E', 7, formatCenter)
+                    #worksheet.set_column('I:J', 7, formatCenter)                    
                     writer.close()
                     fileName= '%s(%s)_%s(%s)_差异件清单.xlsx' % (ef1, bk1, ef2, bk2)
                     ep.write(fileName)
