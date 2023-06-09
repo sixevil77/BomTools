@@ -1075,7 +1075,7 @@ def bomTools():
                     pass
                 finally:
                     st.session_state['eboms2'] = eboms2
-            ebomFile1 = fname
+            ebomFile2 = fname
             st.success('EBOM2:%s已上传完成' % fname)      
         bomKeys1 = list(eboms1.keys())
         bomKeys2 = list(eboms2.keys())
