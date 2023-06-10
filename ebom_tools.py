@@ -387,6 +387,22 @@ def bomTools():
                 cols1[0].markdown(':red['+BomLineStr(s0)+']')
                 cols1[1].markdown(':red['+BomLineStr(s1)+']') 
 
+    def solveSystemChildren(sc):
+        cnameCounts = {}
+        tsc = []
+        for c in sc:
+            cid = c[0]
+            cname = c[1]
+            if cname in cnameCounts:
+                cnameCount = cnameCounts[cname]
+                c[1] = '%s_%d' % (c[1], cnameCount)
+                cnameCounts[cname] = cnameCount + 1                
+            else:
+               cnameCounts[cname] = 1 
+            tsc.append(c)
+        return tsc
+            
+
     def SystemDiff(ss0, ss1, container):
         diffDatas = []
         with container:
@@ -396,7 +412,8 @@ def bomTools():
                     s1 = ss1['sys']
                     sc0 = ss0['children']
                     sc1 = ss1['children']
-                    
+                    sc0 = solveSystemChildren(sc0)
+                    sc1 = solveSystemChildren(sc1)
                     r = False
                     n0 = len(sc0)
                     n1 = len(sc1)
