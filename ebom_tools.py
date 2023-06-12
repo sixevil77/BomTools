@@ -1012,7 +1012,7 @@ def bomTools():
             fname = uploaded_file1.name            
             if not (ebomFile1 == fname):
                 st.session_state['ebomFile1'] = fname
-                df = pd.read_excel(uploaded_file1, header=9)                
+                df = pd.read_excel(uploaded_file1, header=9)
                 try:
                     loc1 = df.columns.get_loc('备注')
                     loc2 = df.columns.get_loc('CMAN')
@@ -1023,7 +1023,8 @@ def bomTools():
                     keys = ['零件编号','零件名称','数量','层级','负责人员'] + tpNames
                     tdf = df[keys]
                     for tpName in tpNames:
-                        tpDf = tdf.query('%s == "●"' % tpName)
+                        #tpDf = tdf.query('%s == "●"' % tpName)
+                        tpDf = tdf[tdf[tpName] == '●']
                         bomArray = tpDf.values
                         systems = {}
                         system = None
@@ -1066,7 +1067,8 @@ def bomTools():
                     keys = ['零件编号','零件名称','数量','层级','负责人员'] + tpNames                    
                     tdf = df[keys]                    
                     for tpName in tpNames:
-                        tpDf = tdf.query('%s == "●"' % tpName)
+                        #tpDf = tdf.query('%s == "●"' % tpName)
+                        tpDf = tdf[tdf[tpName] == '●']
                         bomArray = tpDf.values
                         systems = {}
                         system = None
@@ -1574,7 +1576,11 @@ def bomTools():
                 if not dp:
                     dp = '整车目标'
                 vAll = vc+vm+va+vn
-                vp = '%.2f%%' % ((vc+vm)/(vc+vm+va+vn)*100)
+                vp = 0
+                if vAll > 0:
+                    vp = '%.2f%%' % ((vc+vm)/(vAll)*100)
+                else:
+                    '部门:%s vAll:%s' % (dp, vAll)
                 r = {'部门':dp, '数量':vAll, 'C':vc, 'M':vm, 'A':va, 'N':vn, '实际':vp }
                 #st.write(r)
                 return r
