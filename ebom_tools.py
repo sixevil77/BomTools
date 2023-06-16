@@ -4,9 +4,23 @@ import pandas as pd
 from tinydb import TinyDB, Query, where
 from hashlib import md5
 
+from math import isnan
+
+#import pyparsing as pp
+#number = pp.Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
+#identifier = pp.Word(pp.alphas, pp.alphanums + "_")
+#comparison_term = identifier | number 
+#condition = pp.Group(comparison_term + comparison_term)
+#expr = pp.operatorPrecedence(condition,[
+#                            ("AND", 1, pp.opAssoc.LEFT, ),
+#                            ("OR", 1, pp.opAssoc.LEFT, ),
+#                            ])
+#s = expr.parseString("A AND B OR C")
+#l = s.asList()
+
 st.set_page_config(page_title="BOM工具集", layout="wide")
 
-bLogin = True #'loginUser' in st.session_state
+bLogin = True  #'loginUser' in st.session_state
 
 db = TinyDB('user_info.json')
 User = Query()
@@ -70,6 +84,7 @@ def bomTools():
                           #'BOM差异件核对',
                           '差异件清单生成',
                           'LOU核查工具',
+                          'LOU打点工具',
                           #'工程配置工具',
                           'CMAN统计工具',
                           '其他工具'
@@ -1342,21 +1357,254 @@ def bomTools():
             df_cls
             tdf = df_cls.groupby(['特征族代码','特征族描述（中文）'],as_index=False).count()['特征族描述（中文）']
             ops = list(tdf.values)
+
+    def countListS(l):
+        i = 0
+        for v in l:
+            if (v == 'S') or (v == 's'):
+                i += 1
+        return i
+    
+    def checkLVVS(lvvs):
+        scnt = len(lvvs[0][1])
+        lcnt = len(lvvs)
+        dups = []
+        for i in range(0, scnt):
+            vs = []
+            for j in range(0, lcnt):
+                lvv = lvvs[j]
+                lvid = lvv[0]
+                lvvv = lvv[1]
+                v = lvvv[i]
+                if (v == 'S') or (v == 's'):
+                    vs.append((lvid, i))
+            if len(vs) > 1:
+                dups.append(vs)
+        return dups
+    
+    def getECV(df, skey):
+        cols = st.columns(5)
+        tdf = df.groupby('专业部门',as_index=False).count()['专业部门']
+        ops = list(tdf.values)
+        dept = cols[0].selectbox('专业部门', ops, key=skey+'1')
+        #q = 'GPC == %s and FND == "%s"' % (gpc, fnd)
+        q = '专业部门 == "%s"' % dept
+        df_dept = df.query(q)
+        #df_dept 
+
+        tdf = df_dept.groupby('分类',as_index=False).count()['分类']
+        ops = list(tdf.values)
+        cls = cols[1].selectbox('分类', ops, key=skey+'2')
+        q = '分类 == "%s"' % cls
+        df_cls = df_dept.query(q)
+        #df_cls
+        
+        tdf = df_cls.groupby(['特征组代码','特征组描述'],as_index=False).count()['特征组描述']       
+        ops = list(tdf.values)
+        ccs = cols[2].selectbox('特征组', ops, key=skey+'3')
+        q = '特征组描述 == "%s"' % ccs
+        try:
+            ccs = float(ccs)
+            q = '特征组描述 == %s' % ccs 
+        except:
+            pass        
+        df_ccs = df_cls.query(q)
+        #df_ccs
+
+        tdf = df_ccs.groupby(['特征族代码','特征族描述'],as_index=False).count()['特征族描述']
+        ops = list(tdf.values)
+        ccv = cols[3].selectbox('特征族', ops, key=skey+'4')
+        q = '特征族描述 == "%s"' % ccv
+        try:
+            ccv = float(ccv)
+            q = '特征族描述 == %s' % ccv
+        except:
+            pass
+        df_ccv = df_ccs.query(q)
+        #df_ccv
+
+        tdf = df_ccv.groupby(['特征值代码','特征值描述'],as_index=False).count()['特征值描述']
+        ops = list(tdf.values)
+        cv = cols[4].selectbox('特征值', ops, key=skey+'5')
+        q = '特征值描述 == "%s"' % cv
+        try:
+            cv = float(cv)
+            q = '特征值描述 == %s' % cv
+        except:
+            pass
+        df_cv = df_ccv.query(q)
+        
+        return df_cv, cv
+    
+    def getECV2(df, skey): 
+        tdf = df.groupby(['特征值代码','特征值描述'],as_index=False).count()['特征值描述']
+        ops = list(tdf.values)
+        cv = st.selectbox('特征值', ops, key=skey)
+        q = '特征值描述 == "%s"' % cv
+        try:
+            cv = float(cv)
+            q = '特征值描述 == %s' % cv
+        except:
+            pass
+        df_cv = df.query(q)
+        
+        return df_cv, cv
+    
+    def showLOUPointTool():
+        st.header('LOU打点工具')  
+        df_ectPoint = pd.DataFrame()
+        ectPointFile = ''
+        ectPointDict = {} #配置打点信息字典
+        if 'ectPointFile' in st.session_state:
+            ectPointFile = st.session_state['ectPointFile']
+        if 'ectPointDict' in st.session_state:
+            ectPointDict = st.session_state['ectPointDict']
+        if 'df_ectPoint' in st.session_state:
+            df_ectPoint = st.session_state['df_ectPoint']
+
+        uploaded_file_ect = st.file_uploader("上传工程配置表", type=["xlsx"])
+        if uploaded_file_ect is not None:
+            fname = uploaded_file_ect.name
+            if not (ectPointFile == fname):
+                st.session_state['ectPointFile'] = fname
+                ectPointDict = {}                
+                df = pd.read_excel(uploaded_file_ect, header=2)
+                cc = len(list(df.columns))
+                rows = df.values                
+                for row in rows:
+                    k = str(row[10])
+                    v = row[12:cc]
+                    ectPointDict[k] = v
+                st.session_state['ectPointDict'] = ectPointDict
+                df_ectPoint = df
+                st.session_state['df_ectPoint'] = df_ectPoint
+            st.success('工程配置表文件: %s 已上传' % fname)
+
+        if df_ectPoint.empty:
+            st.warning('请上传工程配置表')
+        else:
+            ectVsDict = {}
+            if 'ectVsDict' in st.session_state:
+                ectVsDict = st.session_state['ectVsDict']
+            #ectPointDict 
+            #df_ectPoint
+            cc = len(list(df_ectPoint.columns))
+            #rows = df.values                
+            #for row in rows:
+            #    k = str(row[10])
+            #    v = row[12:cc] 
+            pStart = 12   
+            pCount = cc - pStart     
+
+            with st.expander('特征值'):
+                vn = st.number_input('特征值数量', 1, 5, 1) 
+                ecvs = []
+                cvs = []
+                rows = []
+                for i in range(0, vn):
+                    #ecv, cv = getECV(df_ectPoint, 'ecv_%s' % i)  
+                    ecv, cv = getECV2(df_ectPoint, 'ecv_%s' % i)           
+                    ecvs.append(ecv)
+                    cvs.append(str(cv))
+                    row = list(ecv.values[0])[pStart:cc]
+                    rows.append(row)
+
+                n = len(rows[0])            
+                row = []
+                op = ''            
+                if st.button('OR'):
+                    row = ['-'] * pCount
+                    op = '|'
+                    for i in range(0, n):
+                        b = False
+                        for j in range(0, vn):
+                            v = str(rows[j][i])
+                            b = b or (v.upper() == 'S')
+                        if b:
+                            row[i] = 'S'  
+                if st.button('AND'):
+                    row = ['-'] * pCount
+                    op = '&'
+                    for i in range(0, n):
+                        b = True
+                        for j in range(0, vn):
+                            v = str(rows[j][i])
+                            b = b and (v.upper() == 'S')
+                        if b:
+                            row[i] = 'S'         
+                st.dataframe(rows)
+                if row:
+                    vk = ('%s' % op).join(cvs)
+                    '特征组合值: %s' % vk
+                    st.dataframe([row])
+                    ectVsDict[vk] = row
+                    st.session_state['ectVsDict'] = ectVsDict
+            with st.expander('组合特征值'):
+                if ectVsDict:
+                    #ectVsDict
+                    c_vn = st.number_input('组合特征值数量', 2, 5, 2) 
+                    c_cvs = []
+                    c_rows = []
+                    cvKeys = ectVsDict.keys()
+                    for i in range(0, c_vn):
+                        ccv = st.selectbox('组合特征值', cvKeys, key='ccv_%s' % i)
+                        crow = ectVsDict[ccv]
+                        c_cvs.append('(%s)' % ccv)                    
+                        c_rows.append(crow)
+                    #c_rows
+                    n = len(c_rows[0])            
+                    row = []
+                    op = ''            
+                    if st.button('OR', key='ccop_or'):
+                        row = ['-'] * pCount
+                        op = '|'
+                        for i in range(0, n):
+                            b = False
+                            for j in range(0, c_vn):
+                                v = str(c_rows[j][i])
+                                b = b or (v.upper() == 'S')
+                            if b:
+                                row[i] = 'S'  
+                    if st.button('AND', key='ccop_and'):
+                        row = ['-'] * pCount
+                        op = '&'
+                        for i in range(0, n):
+                            b = True
+                            for j in range(0, c_vn):
+                                v = str(c_rows[j][i])
+                                b = b and (v.upper() == 'S')
+                            if b:
+                                row[i] = 'S'         
+                    st.dataframe(c_rows)
+                    if row:
+                        vk = ('%s' % op).join(c_cvs)
+                        'lou用法: %s' % vk
+                        st.dataframe([row])
+                        #ectVsDict[vk] = row
+                        #st.session_state['ectVsDict'] = ectVsDict
+                        #ectVsDict
+                
+
             
+           
     def showLOUTool():
         st.header('LOU核查工具')
         df_sys = pd.DataFrame()
         df_ect = pd.DataFrame()
         sysFile = ''
         ectFile = ''
+        ectDict = {} #配置打点信息字典
         if 'sysFile' in st.session_state:
             sysFile = st.session_state['sysFile']
         if 'df_sys' in st.session_state:
             df_sys = st.session_state['df_sys']
         if 'ectFile' in st.session_state:
             ectFile = st.session_state['ectFile']
+        if 'ectDict' in st.session_state:
+            ectDict = st.session_state['ectDict']
         if 'df_ect' in st.session_state:
             df_ect = st.session_state['df_ect']
+        
 
         col1, col2 = st.columns(2)
 
@@ -1389,12 +1637,22 @@ def bomTools():
             fname = uploaded_file_ect.name
             if not (ectFile == fname):
                 st.session_state['ectFile'] = fname
+                ectDict = {}                
+                df = pd.read_excel(uploaded_file_ect, header=2)
+                cc = len(list(df.columns))
+                rows = df.values                
+                for row in rows:
+                    k = str(row[10])
+                    v = row[12:cc]
+                    ectDict[k] = v
+                st.session_state['ectDict'] = ectDict
                 df = pd.read_excel(uploaded_file_ect, header=2, usecols=[10])                 
                 #columns = ['归口专业','CPAC','CPAC_CN','CPAC_EN','FND','FND_CN','FND_EN','GPC','关键件/重要件','是否紧固件','法规件名称',
                 #        '品类代码','品类描述','平台关键总成','本色件标识','是否精确追溯件','度量单位','是否法规件','备注']
                 #df.columns = columns
                 df_ect = df
                 st.session_state['df_ect'] = df_ect
+                
                 #lines = df.values
                 #lastCPAC = None
                 #for line in lines:
@@ -1406,6 +1664,7 @@ def bomTools():
                 #df_ect = pd.DataFrame(lines)
                 #df_sys.columns = columns
                 #st.session_state['df_sys'] = df_sys
+            #'ectDict:', ectDict
             st.success('工程配置表文件: %s 已上传' % fname)
 
         if df_sys.empty or df_ect.empty:
@@ -1414,13 +1673,65 @@ def bomTools():
             if df_ect.empty:
                 st.warning('请上传工程配置表')
         else:
-            ectValues = list(df_ect.iloc[:, 0].values)                        
+            ectValues = list(df_ect.iloc[:, 0].astype(str).values) 
+            minS = st.number_input('请输入单行最少打点数量', 1, 1000, 3)                     
             uploaded_lou = st.file_uploader("上传进行核对的LOU清单", type=["xlsx"])
             if uploaded_lou is not None:
                 #df_lou = pd.read_excel(uploaded_lou, header=8, usecols=range(0,21)) 
                 #df_lou.columns = ['序号','更改说明','查找编号','产品类型','车辆系列','CPAC','CPAC_CN','备注','零件号',
                 #                  '零件名称','GPC','FND','FND_CN','FND_EN','用量','度量单位','零件成熟度',
                 #                  '替换件零件号','是否成套替换','LOU用法','用法（代码）'] 
+                df_lou_all = pd.read_excel(uploaded_lou, header=8)
+                lines = df_lou_all.values
+                gfcDict = {} 
+                i = 0               
+                for line in lines:
+                    i += 1
+                    l = list(line[21:116])
+                    cnt = line[14]
+                    cnts = ''
+                    try:
+                        if (type(cnt) is int) or (type(cnt) is float):
+                            cnts = '%d' % cnt
+                        else:
+                            cnts = '%s' % cnt
+                    except Exception as e:
+                        cnts = 'Error'                   
+                    k = '%s_%s_%s' % (line[10], line[11], cnts)
+                    if k not in gfcDict:
+                        gfcDict[k] = [(i, l)]
+                    else:
+                        gfcDict[k].append((i, l))
+                        #i, k, gfcDict[k]
+                keys = gfcDict.keys()               
+
+                minSErrors = []
+                for key in keys:
+                    lvvs = gfcDict[key]
+                    if len(lvvs) > 1:
+                        errors = checkLVVS(lvvs)
+                        ep = st.expander('错误：[%s] 重复打点' % key)
+                        if errors:
+                            for rs in errors:
+                                idxs = []
+                                col = -1
+                                for r in rs:
+                                    idxs.append(str(r[0]))
+                                    col = r[1]
+                                ep.write('第 %s 行 第 %s 列 重复打点' % (','.join(idxs), col))                        
+                    for lvv in lvvs:
+                        lidx = lvv[0]
+                        lvs = lvv[1]
+                        sCnt = countListS(lvs)
+                        if sCnt < minS:
+                            minSErrors.append('第%s行 打点数量 为 %d 个' % (lidx, sCnt))
+                if minSErrors:
+                    with st.expander('错误: 打点数量 小于 %d 个'%minS):
+                        for err in minSErrors:
+                            err
+
+                #cc = len(list(df_lou_all.columns))
+                #cc
                 df_lou = pd.read_excel(uploaded_lou, header=8, usecols=[5,6,8,9,10,11,12,13,14,19]) 
                 df_lou.columns = ['CPAC','CPAC_CN','零件号','零件名称','GPC','FND','FND_CN','FND_EN','用量','LOU用法'] 
                 values = {'CPAC_CN': '/','FND_EN':'/','FND_CN':'/','LOU用法':'/'}
@@ -1435,12 +1746,36 @@ def bomTools():
                     cpac = line[0]                    
                     gpc = line[4]
                     fnd = line[5]
+                    cnt = line[8]
+            
                     fnd_cn = line[6].strip()
-                    louStr_o = line[9]
-
+                    louStr_o = str(line[9])
+                    #louStr = louStr_o.replace('（','(').replace('）',')').replace(' ','')
+                    #louStr
+                    louStr = louStr_o
+                    ts = louStr.split('&')
+                    for t in ts:
+                        vs = t.split('|')
+                        if len(vs) == 1:
+                            v = vs[0].replace('(','').replace('（','').replace(')','').replace('）','')
+                            vs = [v]
+                        for v in vs:                                
+                            if not ((('（' in v) and ('）' in v)) or (('(' in v) and (')' in v))) :
+                                v = v.replace('（','').replace('）','').replace('(','').replace(')','')
+                            #if v in ectDict:
+                            #    #v
+                            #    st.dataframe([ectDict[v]])
+                            #else:
+                            #    'Error: 配置字典无【%s】配置键' % v
+                            
+                    #if louStr_o in ectDict:
+                    #    louStr_o
+                    #    st.dataframe([ectDict[louStr_o]])
+                    #else:
+                    #    'Error: 配置字典无【%s】配置键' % louStr_o
                     lineError = False
-                    louErrors = []  
-                    louStr_o = str(louStr_o)                  
+                    louErrors = [] 
+                
                     if ' ' in louStr_o:
                         louErrors.append('含有非法字符：:red[空格]')
                     if '(' in louStr_o:
@@ -1448,12 +1783,24 @@ def bomTools():
                     if ')' in louStr_o:
                         louErrors.append('含有非法字符：:red[右括号(英文)]')                    
                     louList = []
-                    louStr = louStr_o.replace('(','').replace('（','').replace(')','').replace('）','').replace(' ','')
+                    #louStr = louStr_o.replace('(','').replace('（','').replace(')','').replace('）','').replace(' ','')
+                    louStr = louStr_o
+                    #'lou用法:', louStr_o
                     ss1 = louStr.split('&')
                     for s1 in ss1:
                         ss2 = s1.split('|')
-                        for s2 in ss2:
+                        #'ss2Len:', len(ss2), ss2
+                        if len(ss2) == 1:
+                            s2 = ss2[0].replace('(','').replace('（','').replace(')','').replace('）','')
+                            #'s2:',s2
                             louList.append(s2)
+                        else:    
+                            for s2 in ss2:
+                                if not ((('（' in s2) and ('）' in s2)) or (('(' in s2) and (')' in s2))) :
+                                    s2 = s2.replace('（','').replace('）','').replace('(','').replace(')','')
+                                #'s2:',s2
+                                louList.append(s2)
+                    #'louList', louList
                     for s in louList:
                         if s not in ectValues:
                             louErrors.append('不是合法的特征值：:red[%s]' % s)
@@ -1691,6 +2038,8 @@ def bomTools():
         showDiffSheetTool()
     elif s == 'LOU核查工具':
         showLOUTool()
+    elif s == 'LOU打点工具':
+        showLOUPointTool()
     elif s == '工程配置工具':
         showECTTool()
     elif s == 'BOM差异件核对':
