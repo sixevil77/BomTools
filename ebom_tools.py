@@ -77,17 +77,17 @@ def bomTools():
 
     
     s = st.sidebar.radio('BOM工具集',
-                         ('BOM数据库维护',
-                          '数据库问题核查',
+                         (#'BOM数据库维护',
+                          #'数据库问题核查',
                           'BOM数据表核对',
-                          'BOM数据库核对',
+                          #'BOM数据库核对',
                           #'BOM差异件核对',
                           '差异件清单生成',
-                          'LOU核查工具',
-                          'LOU打点工具',
+                          #'LOU核查工具',
+                          #'LOU打点工具',
                           #'工程配置工具',
-                          'CMAN统计工具',
-                          '其他工具'
+                          #'CMAN统计工具',
+                          #'其他工具'
                           ))
 
     def BomLineStr(bomline):
