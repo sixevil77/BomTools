@@ -1776,8 +1776,8 @@ def bomTools():
                     lineError = False
                     louErrors = [] 
                 
-                    if ' ' in louStr_o:
-                        louErrors.append('含有非法字符：:red[空格]')
+                    #if ' ' in louStr_o:
+                    #    louErrors.append('含有非法字符：:red[空格]')
                     if '(' in louStr_o:
                         louErrors.append('含有非法字符：:red[左括号(英文)]')
                     if ')' in louStr_o:
@@ -1790,15 +1790,31 @@ def bomTools():
                     for s1 in ss1:
                         ss2 = s1.split('|')
                         #'ss2Len:', len(ss2), ss2
+                        def tricS(s):
+                            s2 = s
+                            if ('(' in s2) and (')' not in s2):
+                                s2 = s2.replace('(','')
+                            if (')' in s2) and ('(' not in s2):
+                                s2 = s2.replace(')','')
+                            if ('（' in s2) and ('）' not in s2):
+                                s2 = s2.replace('（','')
+                            if ('）' in s2) and ('（' not in s2):
+                                s2 = s2.replace('）','')
+                            if (s2.find('(') == 0) or (s2.find('（')==0):
+                                s2 = s2[1:-1]
+                            return s2    
                         if len(ss2) == 1:
-                            s2 = ss2[0].replace('(','').replace('（','').replace(')','').replace('）','')
+                            #s2 = ss2[0].replace('(','').replace('（','').replace(')','').replace('）','')
                             #'s2:',s2
+                            s2 = ss2[0]
+                            s2 = tricS(s2)
                             louList.append(s2)
                         else:    
                             for s2 in ss2:
-                                if not ((('（' in s2) and ('）' in s2)) or (('(' in s2) and (')' in s2))) :
-                                    s2 = s2.replace('（','').replace('）','').replace('(','').replace(')','')
+                                #if not ((('（' in s2) and ('）' in s2)) or (('(' in s2) and (')' in s2))) :
+                                #    s2 = s2.replace('（','').replace('）','').replace('(','').replace(')','')
                                 #'s2:',s2
+                                s2 = tricS(s2)
                                 louList.append(s2)
                     #'louList', louList
                     for s in louList:
