@@ -502,13 +502,16 @@ def bomTools():
                         ids0 = dict0.keys()
                         ids1 = dict1.keys()                   
 
-                        diffs = compare_trees(tree0[0], tree1[0])
+                        diffs = compare_trees(tree0[0], tree1[0])                        
                         if diffs:
+                            b2Y = False
                             for diff in diffs:
                                 t1 = diff['tree1']
                                 t2 = diff['tree2']
                                 diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
                                 if t1:
+                                    if t1['level'] == '2Y':
+                                        b2Y = True
                                     diffData['零件编号1'] = t1['id']
                                     diffData['零件名称1'] = t1['name']
                                     diffData['数量1'] = t1['count']
@@ -516,12 +519,19 @@ def bomTools():
                                     diffData['工程师1'] = t1['user']
                                     diffData['备注1'] = ''
                                 if t2:
+                                    if t2['level'] == '2Y':
+                                        b2Y = True
                                     diffData['零件编号2'] = t2['id']
                                     diffData['零件名称2'] = t2['name']
                                     diffData['数量2'] = t2['count']
                                     diffData['层级2'] = t2['level']
                                     diffData['备注2'] = ''
                                 diffDatas.append(diffData)
+                            if not b2Y:
+                                data2Y = {'零件编号1':s0[0], '零件名称1':s0[1], '数量1':s0[2], '层级1':s0[3],'工程师1':s0[4],'备注1':'','零件编号2':s1[0], '零件名称2':s1[1], '数量2':s1[2], '层级2':s1[3],'备注2':''}
+                                diffDatas.insert(0, data2Y)
+                                #'xxxxxxxxxxxxx'
+                                #diffDatas
                             #container.dataframe(diffDatas, use_container_width=True)
                         else:
                             pass
@@ -1137,11 +1147,10 @@ def bomTools():
             for sn in sns1:
                 ss1 = bom1[sn]
                 sid1 = ss1['sys'][0]                    
-                if sn in sns0:
+                if sn in sns0:                        
                     ss0 = bom0[sn]
-                    sid0 = ss0['sys'][0]
-                    if not(sid0 == sid1):
-                        allDiffData += SystemDiff(ss0, ss1, ep)
+                    r = SystemDiff(ss0, ss1, ep)
+                    allDiffData += r                  
                 else:
                     allDiffData += SystemDiff(None, ss1, ep)                        
                 i += 1                    
@@ -1153,15 +1162,9 @@ def bomTools():
             for sn in sns0:
                 if sn in sns1:
                     continue
-                ss0 = bom0[sn]
-                sid0 = ss0['sys'][0]                    
-                if sn in sns1:
-                    ss1 = bom1[sn]
-                    sid1 = ss1['sys'][0]
-                    if not(sid0 == sid1):
-                        allDiffData += SystemDiff(ss0, ss1, ep)
-                else:
-                    allDiffData += SystemDiff(ss0, None, ep)
+                ss0 = bom0[sn]                  
+                r = SystemDiff(ss0, None, ep)
+                allDiffData += r
                 i += 1                    
                 pText = '生成进度： (%d/%d)'%(i, n)
                 loadBar.progress(float(i)/float(n), text=pText)
@@ -1174,8 +1177,8 @@ def bomTools():
                 ep.dataframe(cdf, use_container_width=True)
                 import io
                 buffer = io.BytesIO()
-                ef1 = ebomFile1.split('.')[0]
-                ef2 = ebomFile2.split('.')[0]
+                ef1 = ebomFile1.split('.xlsx')[0]
+                ef2 = ebomFile2.split('.xlsx')[0]
                 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                     #workbook = writer.book
                     #formatCenter = workbook.add_format({'align':'center','font_color': '#0000FF'})
