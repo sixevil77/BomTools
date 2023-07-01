@@ -83,6 +83,7 @@ def bomTools():
                           #'BOM数据库核对',
                           #'BOM差异件核对',
                           '差异件清单生成',
+                          'MBOM差异件清单生成',
                           'LOU核查工具',
                           'LOU打点工具',
                           #'工程配置工具',
@@ -575,6 +576,176 @@ def bomTools():
                 with col2:
                     'ss1:',ss1
         return diffDatas
+    
+    def solveSystemChildren_MBOM(sc):
+        cnameCounts = {}
+        tsc = []
+        for c in sc:
+            cname = c[2]
+            if cname in cnameCounts:
+                cnameCount = cnameCounts[cname]
+                c[2] = '%s_%d' % (c[2], cnameCount)
+                cnameCounts[cname] = cnameCount + 1                
+            else:
+               cnameCounts[cname] = 1 
+            tsc.append(c)
+        return tsc
+    
+    def SystemDiff_MBOM(ss0, ss1, container):
+        diffDatas = []
+        with container:
+            try:
+                if ss0 and ss1:            
+                    s0 = ss0['sys']
+                    s1 = ss1['sys']
+                    sc0 = ss0['children']
+                    sc1 = ss1['children']
+                    sc0 = solveSystemChildren_MBOM(sc0)
+                    sc1 = solveSystemChildren_MBOM(sc1)
+                    r = not(s0[1] == s1[1])
+                    if not r:
+                        n0 = len(sc0)
+                        n1 = len(sc1)
+                        for i in range(0, n0):
+                            b0 = sc0[i]
+                            id0 = b0[1]                                   
+                            bIn = False
+                            for j in range(0, n1):                
+                                b1 = sc1[j]
+                                id1 = b1[1]
+                                if (id0 == id1):
+                                    bIn = True                                
+                                    r =  not(str(b0[0]) == str(b1[0]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3]))
+                                    if not(r):
+                                        break
+                            r = r or (not bIn)
+                            if r:
+                                break 
+                        if not r:
+                            for i in range(0,n1):
+                                b1 = sc1[i]
+                                id1 = b1[1]            
+                                bIn = False
+                                for j in range(0, n0):                
+                                    b0 = sc0[j]
+                                    id0 = b0[1]
+                                    if (id0 == id1):
+                                        bIn = True
+                                        r =  not(str(b0[0]) == str(b1[0]) and str(b0[2]) == str(b1[2]) and str(b0[3]) == str(b1[3]))
+                                        if not(r):
+                                            break
+                                r = r or (not bIn)
+                                if r:
+                                    break                              
+                    if r:
+                        dict0 = {}
+                        dict1 = {}
+                        
+                        d0s = []
+                        u0 = {'id':s0[1], 'name':s0[2], 'count':str(s0[3]), 'level':s0[0], 'user':''}                        
+                        d0s.append(u0)
+                        dict0[s0[0]] = u0
+                        for d in sc0:
+                            u0 = {'id':d[1], 'name':d[2], 'count':str(d[3]), 'level':d[0], 'user':''}
+                            d0s.append(u0)
+                            dict0[d[1]] = u0
+                        d0 = pd.DataFrame(d0s)
+
+                        d1s = []
+                        u1 = {'id':s1[1], 'name':s1[2], 'count':str(s1[3]), 'level':s1[0], 'user':''}
+                        d1s.append(u1)
+                        dict1[s1[1]] = u1
+                        for d in sc1:
+                            u1 = {'id':d[1], 'name':d[2], 'count':str(d[3]), 'level':d[0], 'user':''}
+                            d1s.append(u1)
+                            dict1[d[1]] = u1
+                        d1 = pd.DataFrame(d1s)
+
+                        td = [s0]+sc0
+                        td = [{'id':s0[1], 'name':s0[2], 'count':str(s0[3]), 'level':s0[0], 'user':''}]
+                        for c0 in sc0:
+                            td.append({'id':c0[1], 'name':c0[2], 'count':str(c0[3]), 'level':c0[0], 'user':''})
+                        tree0 = generate_tree(solveTreeData_MBOM(td), 0)
+
+                        td = [s1]+sc1
+                        td = [{'id':s1[1], 'name':s1[2], 'count':str(s1[3]), 'level':s1[0], 'user':''}]
+                        for c1 in sc1:
+                            td.append({'id':c1[1], 'name':c1[2], 'count':str(c1[3]), 'level':c1[0], 'user':''})
+                        tree1 = generate_tree(solveTreeData_MBOM(td), 0)
+
+                        ids0 = dict0.keys()
+                        ids1 = dict1.keys()                   
+
+                        diffs = compare_trees(tree0[0], tree1[0])                        
+                        if diffs:
+                            b2Y = False
+                            for diff in diffs:
+                                t1 = diff['tree1']
+                                t2 = diff['tree2']
+                                diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                                if t1:
+                                    if t1['level'] == 1:
+                                        b2Y = True
+                                    diffData['零件编号1'] = t1['id']
+                                    diffData['零件名称1'] = t1['name']
+                                    diffData['数量1'] = t1['count']
+                                    diffData['层级1'] = t1['level']
+                                    diffData['工程师1'] = t1['user']
+                                    diffData['备注1'] = ''
+                                if t2:
+                                    if t2['level'] == '2Y':
+                                        b2Y = True
+                                    diffData['零件编号2'] = t2['id']
+                                    diffData['零件名称2'] = t2['name']
+                                    diffData['数量2'] = t2['count']
+                                    diffData['层级2'] = t2['level']
+                                    diffData['备注2'] = ''
+                                diffDatas.append(diffData)
+                            if not b2Y:
+                                data2Y = {'零件编号1':s0[1], '零件名称1':s0[2], '数量1':s0[3], '层级1':s0[0],'工程师1':'','备注1':'','零件编号2':s1[1], '零件名称2':s1[2], '数量2':s1[3], '层级2':s1[0],'备注2':''}
+                                diffDatas.insert(0, data2Y)
+                        else:
+                            pass
+                            #'Error: No diffs 1'
+                    else:
+                        pass
+                        #'Error: No diffs 2' 
+                elif ss0:
+                    s0 = ss0['sys']
+                    sc0 = ss0['children']                    
+                    diffData = {'零件编号1':s0[1], '零件名称1':s0[2], '数量1':s0[3], '层级1':s0[0],'工程师1':'','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                    diffDatas.append(diffData)
+                    for c0 in sc0:
+                        diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                        diffData['零件编号1'] = c0[1]
+                        diffData['零件名称1'] = c0[2]
+                        diffData['数量1'] = c0[3]
+                        diffData['层级1'] = c0[0]
+                        diffData['工程师1'] = ''
+                        diffData['备注1'] = ''
+                        diffDatas.append(diffData)
+                elif ss1:   
+                    s1 = ss1['sys']
+                    sc1 = ss1['children']                    
+                    diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':s1[1], '零件名称2':s1[2], '数量2':s1[3], '层级2':s1[0],'备注2':''}
+                    diffDatas.append(diffData)
+                    for c1 in sc1:
+                        diffData = {'零件编号1':'/', '零件名称1':'/', '数量1':'/', '层级1':'/','工程师1':'/','备注1':'','零件编号2':'/', '零件名称2':'/', '数量2':'/', '层级2':'/','备注2':''}
+                        diffData['零件编号2'] = c1[1]
+                        diffData['零件名称2'] = c1[2]
+                        diffData['数量2'] = c1[3]
+                        diffData['层级2'] = c1[0]
+                        diffData['备注2'] = ''
+                        diffDatas.append(diffData)
+            except Exception as e:
+                'Error: 出错了！'
+                #e
+                col1, col2 = st.columns(2)
+                with col1:
+                    'ss0:',ss0
+                with col2:
+                    'ss1:',ss1
+        return diffDatas
 
     def SystemChildrenDiff(ss0, ss1, cols1, cols2, container):
         s0 = ss0['sys']
@@ -848,6 +1019,21 @@ def bomTools():
                 
             treeDatas.append(leafData) 
         return treeDatas
+    
+    def solveTreeData_MBOM(treeData):
+        treeDatas = []
+        lastTreeNodes = {1:treeData[0]}
+        lastErrId = ''
+        for data in treeData:
+            level = int(data['level'])
+            leafData = {}
+            if level > 1:
+                lastTreeNodes[level] = data
+                leafData = {'parent':lastTreeNodes[level-1]['id'], 'data':data}
+            else:
+                leafData = {'parent':0, 'data':data}
+            treeDatas.append(leafData) 
+        return treeDatas
                 
     def generate_tree(source, parent):
         tree = []
@@ -1010,6 +1196,165 @@ def bomTools():
             if st.button('开始核查'):
                 CheckErrorSystems()
 
+    def showMBOMDiffSheetTool():
+        st.header('MBOM差异件清单生成工具')
+        mbom1 = {}
+        mbom2 = {}
+        mbomFile1 = ''
+        mbomFile2 = ''
+        if 'mbomFile1' in st.session_state:
+            mbomFile1 = st.session_state['mbomFile1']
+        if 'mbomFile2' in st.session_state:
+            mbomFile2 = st.session_state['mbomFile2']
+        if 'mbom1' in st.session_state:
+            mbom1 = st.session_state['mbom1']
+        if 'mbom2' in st.session_state:
+            mbom2 = st.session_state['mbom2']
+        col1,col2 = st.columns(2)
+        loadBar = st.progress(0, text='')
+        uploaded_file1 = col1.file_uploader("上传MBOM清单1", type=["xlsx"])
+        uploaded_file2 = col2.file_uploader("上传MBOM清单2", type=["xlsx"])
+        if uploaded_file1 is not None:
+            fname = uploaded_file1.name            
+            if not (mbomFile1 == fname):
+                try:
+                    st.session_state['mbomFile1'] = fname
+                    df = pd.read_excel(uploaded_file1)
+                    keys = ['级别','对象标识','对象描述','组件数量(CUn)']
+                    tdf = df[keys]
+                    bomArray = tdf.values
+                    systems = {}
+                    system = None
+                    i = 0
+                    n = len(bomArray)
+                    for bomLine in bomArray:
+                        sysName = bomLine[2]
+                        sysLevel = bomLine[0]
+                        if sysLevel == 1:
+                            system = {'sys':bomLine , 'children':[]}
+                            systems[sysName] = system
+                        else:
+                            if system:
+                                system['children'].append(bomLine)
+                        loadBar.progress(float(i)/float(n), text='')
+                    mbom1 = systems
+                except Exception as e:
+                    #pText = '加载Ebom[%s]失败，格式不正确'%sheetName
+                    #st.write(pText)
+                    e
+                    pass
+                finally:
+                    st.session_state['mbom1'] = mbom1
+            ebomFile1 = fname
+            st.success('MBOM1:%s已上传完成' % fname)
+
+        if uploaded_file2 is not None:
+            fname = uploaded_file2.name            
+            if not (mbomFile2 == fname):
+                try:
+                    st.session_state['mbomFile2'] = fname
+                    df = pd.read_excel(uploaded_file2)
+                    keys = ['级别','对象标识','对象描述','组件数量(CUn)']
+                    tdf = df[keys]
+                    bomArray = tdf.values
+                    systems = {}
+                    system = None
+                    i = 0
+                    n = len(bomArray)
+                    for bomLine in bomArray:
+                        sysName = bomLine[2]
+                        sysLevel = bomLine[0]
+                        if sysLevel == 1:
+                            system = {'sys':bomLine , 'children':[]}
+                            systems[sysName] = system
+                        else:
+                            if system:
+                                system['children'].append(bomLine)
+                        loadBar.progress(float(i)/float(n), text='')
+                    mbom2 = systems
+                except Exception as e:
+                    #pText = '加载Ebom[%s]失败，格式不正确'%sheetName
+                    #st.write(pText)
+                    e
+                    pass
+                finally:
+                    st.session_state['mbom2'] = mbom2
+            ebomFile2 = fname
+            st.success('MBOM2:%s已上传完成' % fname) 
+
+        bom0 = mbom1
+        bom1 = mbom2
+
+        if mbom1 and mbom2:
+            loadBar = st.progress(0, text='')
+            #cols = st.columns(2)
+            #cols[0].subheader(mbomFile1)
+            #cols[1].subheader(mbomFile2)
+            ep = st.expander("差异件清单")
+            cols = ep.columns(2)
+            
+            sns0 = []
+            sns1 = []
+            allDiffData = []
+
+            sns0 = list(bom0.keys())
+            sns1 = list(bom1.keys())           
+            
+            n = len(sns1)
+            i = 0
+            for sn in sns1:
+                ss1 = bom1[sn]
+                sid1 = ss1['sys'][1]
+                if sn in sns0:                        
+                    ss0 = bom0[sn]
+                    r = SystemDiff_MBOM(ss0, ss1, ep)
+                    allDiffData += r                  
+                else:
+                    allDiffData += SystemDiff_MBOM(None, ss1, ep)                        
+                i += 1                    
+                pText = '生成进度： (%d/%d)'%(i, n)
+                loadBar.progress(float(i)/float(n), text=pText)
+
+            n = len(sns0)
+            i = 0
+            for sn in sns0:
+                if sn in sns1:
+                    continue
+                ss0 = bom0[sn]                  
+                r = SystemDiff_MBOM(ss0, None, ep)
+                allDiffData += r
+                i += 1                    
+                pText = '生成进度： (%d/%d)'%(i, n)
+                loadBar.progress(float(i)/float(n), text=pText)
+            loadBar.progress(1.0, text='MBOM差异件清单生成完成!')
+
+            if allDiffData:
+                df = pd.DataFrame(allDiffData)
+                color = ((df['层级1'] == 1) | (df['层级2'] == 1)).map({True: 'background-color: #EEEE99', False: ''})
+                cdf = df.style.apply(lambda s: color)
+                df = df.set_index('零件编号1')
+                ep.dataframe(cdf, use_container_width=True)
+                import io
+                buffer = io.BytesIO()
+                ef1 = ebomFile1.split('.xlsx')[0]
+                ef2 = ebomFile2.split('.xlsx')[0]
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    sheet_new = 'Sheet1'
+                    cdf.to_excel(writer, sheet_name=sheet_new, index=False)                  
+                    writer.close()
+                    fileName= '%s_%s_差异件清单.xlsx' % (ef1, ef2)
+                    ep.write(fileName)
+                    ep.download_button(
+                        label="下载差异件清单",
+                        data=buffer,
+                        file_name=fileName,
+                        mime='application/vnd.ms-excel'
+                        )  
+            else:
+                ep.write('所选两个MBOM无差异') 
+        else:
+            '请加载要对比的MBOM清单 '
+
     def showDiffSheetTool():
         st.header('BOM差异件清单生成工具') 
 
@@ -1122,7 +1467,7 @@ def bomTools():
             ebomFile2 = fname
             st.success('EBOM2:%s已上传完成' % fname)      
         bomKeys1 = list(eboms1.keys())
-        bomKeys2 = list(eboms2.keys())
+        bomKeys2 = list(eboms2.keys())        
         if bomKeys1 and bomKeys2:        
             st.subheader('通过两个ebom生成差异件清单')
             cols = st.columns(2)            
@@ -2055,6 +2400,8 @@ def bomTools():
         showCMANTool()
     elif s == '差异件清单生成':
         showDiffSheetTool()
+    elif s == 'MBOM差异件清单生成':
+        showMBOMDiffSheetTool()
     elif s == 'LOU核查工具':
         showLOUTool()
     elif s == 'LOU打点工具':
