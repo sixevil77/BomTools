@@ -1219,9 +1219,9 @@ def bomTools():
             if not (mbomFile1 == fname):
                 try:
                     st.session_state['mbomFile1'] = fname
-                    df = pd.read_excel(uploaded_file1)
-                    keys = ['级别','对象标识','对象描述','组件数量(CUn)']
-                    tdf = df[keys]
+                    df = pd.read_excel(uploaded_file1, usecols=[0,2,3,4])
+                    df.columns = ['级别','对象标识','对象描述','组件数量(CUn)']
+                    tdf = df
                     bomArray = tdf.values
                     systems = {}
                     system = None
@@ -1253,9 +1253,9 @@ def bomTools():
             if not (mbomFile2 == fname):
                 try:
                     st.session_state['mbomFile2'] = fname
-                    df = pd.read_excel(uploaded_file2)
-                    keys = ['级别','对象标识','对象描述','组件数量(CUn)']
-                    tdf = df[keys]
+                    df = pd.read_excel(uploaded_file2, usecols=[0,2,3,4])
+                    df.columns = ['级别','对象标识','对象描述','组件数量(CUn)']
+                    tdf = df
                     bomArray = tdf.values
                     systems = {}
                     system = None
