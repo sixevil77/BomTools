@@ -416,8 +416,7 @@ def bomTools():
             else:
                cnameCounts[cname] = 1 
             tsc.append(c)
-        return tsc
-            
+        return tsc            
 
     def SystemDiff(ss0, ss1, container):
         diffDatas = []
@@ -1215,7 +1214,7 @@ def bomTools():
         uploaded_file1 = col1.file_uploader("上传MBOM清单1", type=["xlsx"])
         uploaded_file2 = col2.file_uploader("上传MBOM清单2", type=["xlsx"])
         if uploaded_file1 is not None:
-            fname = uploaded_file1.name            
+            fname = uploaded_file1.name       
             if not (mbomFile1 == fname):
                 try:
                     st.session_state['mbomFile1'] = fname
@@ -1239,14 +1238,14 @@ def bomTools():
                         loadBar.progress(float(i)/float(n), text='')
                     mbom1 = systems
                 except Exception as e:
-                    #pText = '加载Ebom[%s]失败，格式不正确'%sheetName
+                    #pText = '加载MBOM[%s]失败，格式不正确'%sheetName
                     #st.write(pText)
                     e
                     pass
                 finally:
                     st.session_state['mbom1'] = mbom1
-            ebomFile1 = fname
-            st.success('MBOM1:%s已上传完成' % fname)
+            mbomFile1 = fname
+            st.success('MBOM1 已上传完成')
 
         if uploaded_file2 is not None:
             fname = uploaded_file2.name            
@@ -1273,14 +1272,14 @@ def bomTools():
                         loadBar.progress(float(i)/float(n), text='')
                     mbom2 = systems
                 except Exception as e:
-                    #pText = '加载Ebom[%s]失败，格式不正确'%sheetName
+                    #pText = 'MBOM[%s]失败，格式不正确'%sheetName
                     #st.write(pText)
                     e
                     pass
                 finally:
                     st.session_state['mbom2'] = mbom2
-            ebomFile2 = fname
-            st.success('MBOM2:%s已上传完成' % fname) 
+            mbomFile2 = fname
+            st.success('MBOM2 已上传完成') 
 
         bom0 = mbom1
         bom1 = mbom2
@@ -1336,8 +1335,8 @@ def bomTools():
                 ep.dataframe(cdf, use_container_width=True)
                 import io
                 buffer = io.BytesIO()
-                ef1 = ebomFile1.split('.xlsx')[0]
-                ef2 = ebomFile2.split('.xlsx')[0]
+                ef1 = mbomFile1.lower().split('.xlsx')[0]
+                ef2 = mbomFile2.lower().split('.xlsx')[0]
                 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                     sheet_new = 'Sheet1'
                     cdf.to_excel(writer, sheet_name=sheet_new, index=False)                  
@@ -1354,6 +1353,19 @@ def bomTools():
                 ep.write('所选两个MBOM无差异') 
         else:
             '请加载要对比的MBOM清单 '
+
+    def getFixCountStr(line):
+        cnt = line['数量']
+        try:
+            cntInt = int(cnt)
+            if cnt == cntInt:
+                cnt = str(cntInt)
+            else:
+                cnt = str(cnt)
+        except Exception as e:
+             cnt = str(cnt)
+        finally:
+            return cnt
 
     def showDiffSheetTool():
         st.header('BOM差异件清单生成工具') 
@@ -1383,6 +1395,7 @@ def bomTools():
             if not (ebomFile1 == fname):
                 st.session_state['ebomFile1'] = fname
                 df = pd.read_excel(uploaded_file1, header=9)
+                df['数量'] = df.apply(lambda x:getFixCountStr(x), axis=1)
                 try:
                     loc1 = df.columns.get_loc('备注')
                     loc2 = df.columns.get_loc('CMAN')
@@ -1426,7 +1439,8 @@ def bomTools():
             fname = uploaded_file2.name
             if not (ebomFile2 == fname):
                 st.session_state['ebomFile2'] = fname
-                df = pd.read_excel(uploaded_file2, header=9)                
+                df = pd.read_excel(uploaded_file2, header=9) 
+                df['数量'] = df.apply(lambda x:getFixCountStr(x), axis=1)
                 try:
                     loc1 = df.columns.get_loc('备注')
                     loc2 = df.columns.get_loc('CMAN')
