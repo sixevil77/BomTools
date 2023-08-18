@@ -48,7 +48,7 @@ def ShowDataWorkStatistics():
                     st.subheader(c+' - 部门统计 - '+xTitle)
                     #q = '(%s != "/") and (%s != "TBD") and (%s == %s)' % (c,c,c,c)
                     #q = 'and (%s == %s) and (%s != "/")' % (c,c,c,c,s)
-                    q = '(%s == "G") or (%s == "N")' % (s, s)
+                    q = '(%s == "G") or (%s == "N") and (not (%s == ""))' % (s, s, s)
 
                     tdf = hdf.query(q)
                     xdf = tdf.groupby(['部门', s], as_index=False ).agg('count')
@@ -124,7 +124,10 @@ def ShowDataWorkStatistics():
                     xdf = tdf.sort_values(by=c,ascending=True,inplace=False)
                     vs = list(xdf.values)
                     plans = {}
-                    gSum = 0                 
+                    gSum = 0       
+     
+                    #lastGCount = 0
+                    #lastGDate = ''
                     for v in vs:
                         vDate = v[0]
                         vStat = v[1]
@@ -135,29 +138,37 @@ def ShowDataWorkStatistics():
                             gSum += vCnt
                         elif vStat == 'N':
                             nCnt = vCnt
-                        plan = {'总数':0, '计划1':'', '计划2':'', '完成':0, '未完成':0, '未到期':0, '计划完成率':0, '实际完成率':0}
+                        plan = {'总数':0, '计划':'', '完成':0, '未完成':0, '未到期':0, '计划完成率':0, '实际完成率':0}
                         if vDate in plans:
                             plan = plans[vDate]
                         #pSum = plan['总数'] + vCnt
                         #pGSum = plan['完成'] + gCnt
                         #pNSum = plan['未完成'] + nCnt
 
-                        nCount = int(list(xdf.query('(%s > "%s") and (%s == "N")' % (c, dtsNow, s)).agg('sum', numeric_only=True).values)[4])
+                        #nCount = int(list(xdf.query('(%s > "%s") and (%s == "N")' % (c, dtsNow, s)).agg('sum', numeric_only=True).values)[4])
 
                         gCount = int(list(xdf.query('(%s <= "%s") and (%s == "G")' % (c, vDate, s)).agg('sum', numeric_only=True).values)[4])
 
                         plan['总数'] = dSum
-                        plan['完成'] = gCount
-                        plan['未完成'] = max((dSum-gCount), nCount)
+                        plan['完成'] = gCount 
+                        
+                        #if not (lastGDate == vDate):
+                        #    if gCount == lastGCount:
+                        #        plan['完成'] = ''
+                        #    else:
+                        #        lastGCount = gCount 
+                        #        lastGDate = vDate                        
 
                         npCount = int(list(xdf.query('(%s > "%s")' % (c, vDate)).agg('sum', numeric_only=True).values)[4])
 
                         plan['未到期'] = npCount
-                        plan['计划1'] = int(dSum - npCount)
+                        plan['计划'] = int(dSum - npCount)
                         if vDate > dtsNow:
-                            plan['计划2'] = plan['计划1']
-                            plan['完成'] = ''
+                            #plan['计划2'] = plan['计划']
+                            #plan['完成'] = ''
                             plan['未完成'] = ''
+
+                        plan['未完成'] = int(dSum - npCount - gCount)
 
                         plan['计划完成率'] = '%.2f%%' % ((dSum-npCount) / dSum * 100)
                         plan['实际完成率'] = '%.2f%%' % (gSum / dSum * 100)
