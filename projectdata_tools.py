@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import datetime
 import plotly.express as px
 
-from st_aggrid import AgGrid, GridUpdateMode, JsCode, GridUpdateMode
 import io
 
 st.set_page_config(page_title="数据发布工具集", layout="wide")
@@ -322,81 +321,6 @@ def showPubDataTool():
 
         #st.dataframe(pubObjs, use_container_width=True)
         #st.dataframe(pubRecords)
-        
-
-        
-
-        if 0:
-            df = pd.DataFrame(pubObjs)
-            df["callRecords"] = df["callRecords"].apply(lambda x: pd.json_normalize(x))
-            gridOptions = {
-                "masterDetail": True,
-                "rowSelection": "single",
-                "columnDefs": [
-                    {
-                        "field": "序号",
-                        "cellRenderer": "agGroupCellRenderer",
-                        "checkboxSelection": False,
-                    },
-                    {"field": "产品线"},
-                    {"field": "项目"},
-                    {"field": "立项"},
-                    {"field": "任务"},
-                    {"field": "问题描述"},
-                    {"field": "责任部门/人"},
-                    {"field": "原因分析"},
-
-                    #{"field": "minutes", "valueFormatter": "x.toLocaleString() + 'm'"},
-                ],
-                "defaultColDef": {
-                    "flex": 1,
-                },
-                # provide Detail Cell Renderer Params
-                
-                "detailCellRendererParams": {
-                    # provide the Grid Options to use on the Detail Grid
-                    "detailGridOptions": {
-                        "rowSelection": "multiple",
-                        "suppressRowClickSelection": True,
-                        "enableRangeSelection": True,
-                        "pagination": True,
-                        "paginationAutoPageSize": True,
-                        "paginationPageSize":20,
-                        "columnDefs": [
-                            {"field": "部门"},
-                            {"field": "计划数量"},
-                            {"field": "完成数量"},
-                            {"field": "完成率"},
-                            #{"field": "direction"},
-                            #{"field": "number", "minWidth": 150},
-                            #{"field": "duration", "valueFormatter": "x.toLocaleString() + 's'"},
-                            #{"field": "switchCode", "minWidth": 150},
-                        ],
-                        "defaultColDef": {
-                            "sortable": True,
-                            "flex": 1,
-                        },
-                        "height":600,
-                    },
-                    # get the rows for each Detail Grid
-                    "getDetailRowData": JsCode(
-                        """function (params) {
-                            console.log(params);
-                            params.successCallback(params.data.callRecords);
-                }"""
-                    ).js_code,
-                },
-            }
-            AgGrid(
-                df,
-                gridOptions=gridOptions,
-                height=500,
-                allow_unsafe_jscode=True,
-                enable_enterprise_modules=True,
-                update_mode=GridUpdateMode.SELECTION_CHANGED
-            )
-        
-
         
         if 0:
             pcs = st.selectbox('选择产品线', ['T1N', 'T1J', 'T1K', 'T1P', 'T1L', 'T-2'])
