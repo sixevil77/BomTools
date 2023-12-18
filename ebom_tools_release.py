@@ -1,81 +1,9 @@
 import streamlit as st
 import pandas as pd
 
-from tinydb import TinyDB, Query, where
-from hashlib import md5
-
-from math import isnan
-
-#import pyparsing as pp
-#number = pp.Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
-#identifier = pp.Word(pp.alphas, pp.alphanums + "_")
-#comparison_term = identifier | number 
-#condition = pp.Group(comparison_term + comparison_term)
-#expr = pp.operatorPrecedence(condition,[
-#                            ("AND", 1, pp.opAssoc.LEFT, ),
-#                            ("OR", 1, pp.opAssoc.LEFT, ),
-#                            ])
-#s = expr.parseString("A AND B OR C")
-#l = s.asList()
-
 st.set_page_config(page_title="BOM工具集", layout="wide")
 
-bLogin = True  #'loginUser' in st.session_state
-
-db = TinyDB('user_info.json')
-User = Query()
-
-def login():
-    st.title('用户登录')
-    work_id = st.text_input('请输入工号')
-    password = st.text_input('请输入密码', type='password')
-    if st.button('登录'):
-        result = db.get((User.work_id == work_id) & (User.password == password))
-        if result:
-            st.success('登录成功！')
-            st.session_state['loginUser'] = result
-            st.experimental_rerun()
-        else:
-            st.error('工号或密码错误，请重新输入。')
-
-def register():
-    st.title('用户注册')    
-    work_id = st.text_input('请输入工号')
-    username = st.text_input('请输入姓名')
-    password = st.text_input('请输入密码', type='password')
-    confirm_password = st.text_input('请再次输入密码', type='password')
-    if st.button('注册'):
-        if password != confirm_password:
-            st.error('两次输入的密码不一致，请重新输入。')
-            return
-        result = db.search(User.work_id == work_id)
-        if result:
-            st.error('该工号已被注册。')
-            return
-        # 保存用户信息到数据库
-        user_info = {'username': username, 'work_id': work_id, 'password': password}
-        db.insert(user_info)
-        st.success('注册成功！')
-
-def loginPage():
-    menu = ['登录', '注册']
-    choice = st.sidebar.selectbox('请选择要进行的操作', menu)
-    if choice == '登录':
-        login()
-    elif choice == '注册':
-        register()
-
-def bomTools():    
-    if bLogin:
-        if 'loginUser' in st.session_state:
-            st.sidebar.write('你好,%s!' % st.session_state.loginUser['username'])
-        #if st.sidebar.button('退出登录'):
-        #    del st.session_state['loginUser']
-        #    st.experimental_rerun()
-    else:
-        st.experimental_rerun()
-
-    
+def bomTools():
     s = st.sidebar.radio('BOM工具集',
                          (#'BOM数据库维护',
                           #'数据库问题核查',
@@ -90,7 +18,7 @@ def bomTools():
                           #'工程配置工具',
                           'CMAN统计工具',
                           '配置表处理工具',
-                          #'其他工具'
+                          '配置打点信息一致性核查',
                           ))
 
     def BomLineStr(bomline):
@@ -2127,6 +2055,156 @@ def bomTools():
                         #st.session_state['ectVsDict'] = ectVsDict
                         #ectVsDict
                 
+    def showLOUCheckTool():
+        st.header('配置打点信息一致性核查')    
+        ccFile = st.file_uploader("上传解算文件", type=["xlsx"])
+        headRow = 0
+        rs = []
+        if ccFile is not None:
+            df1 = pd.read_excel(ccFile, header=headRow)
+            #df1
+            lous1 = list(df1['变更后LOU用法'].values)
+            #'lous1, n', lous1, len(lous1)
+            cols1 = list(df1.columns)
+            colLen1 = len(cols1)
+            #'cols1', cols1
+            pNames1 = cols1[4:]
+            louFile = st.file_uploader("上传LOU文件", type=["xlsx"])
+            rn1 = len(df1)
+            vs1 = list(df1.values)
+            values1 = []
+            for v in vs1:
+                values1.append(v[4:])
+            #'values1', values1
+            if louFile is not None:
+                df2 = pd.read_excel(louFile, header=headRow) 
+                #df2
+
+                cols2 = list(df2.columns)
+                #'cols2', cols2
+                sIdx = 0
+                eIdx = 0
+                for i in range(len(cols2)):
+                    col2 = cols2[i]
+                    if col2 == 'LOU用法':
+                        sIdx = i + 2
+                    elif col2 == 'EWO变更单号':
+                        eIdx = i - 1
+                #'sIdx, eIdx', sIdx, eIdx+1
+
+                vs2 = list(df2.values)[6:]
+                values2 = []
+                for v in vs2:
+                    values2.append(v[sIdx:eIdx+1])
+                #'values2', values2
+                
+                pCols2 = cols2[sIdx:eIdx+1]
+
+                lous2 = list(df2['LOU用法'].values)
+                lous2 = lous2[6:]
+                
+
+                #pNames2 = {}
+                #i = 0
+                #for i in range(len(pCols2)):
+                #    pCol2 = pCols2[i]
+                #   pds2 = list(df2[pCol2].values)
+                #    pName2 = pds2[2]
+                #    ps = pName2.split('-')[1].split('内饰')
+                #    pNameX = ps[0] + '内饰本色' + ps[1]
+                #    i1 = -1
+                #    for j in range(len(pNames1)):
+                #       pName1 = pNames1[j]
+                #        if pNameX in pName1:
+                #            i1 = j
+                #            break
+                #    pNames2[pName2] = [pNameX, i, i1]
+                #'pNames', pNames1, pNames2
+                    
+                pNames2 = []
+                pNames2X = []
+                i = 0
+                for i in range(len(pCols2)):
+                    pCol2 = pCols2[i]
+                    pds2 = list(df2[pCol2].values)
+                    pName2 = pds2[2]
+                    ps = pName2.split('-')[1].split('内饰')
+                    pName2X = ps[0] + '内饰本色' + ps[1]
+                    pNames2.append(pName2)
+                    pNames2X.append(pName2X)
+                #'pNames', pNames2, pNames2X
+
+                pNamesDict = {}
+                for i in range(len(pNames1)):
+                    pName1 = pNames1[i]
+                    k = -1
+                    for j in range(len(pNames2X)):
+                        pName2X = pNames2X[j]
+                        if pName2X in pName1:
+                            k = j
+                            break
+                    pNamesDict[i] = k
+                #'pNamesDict', pNamesDict
+
+
+                rows = []
+                for i in range(rn1):
+                    row = {}
+                    row1 = values1[i]
+                    row2 = values2[i]
+                    lou1 = lous1[i]
+                    lou2 = lous2[i]
+                    #'row1, row2', row1, row2
+                    #'pNames1, pNames2', pNames1, pNames2                                            
+                    #row = {'变更后LOU用法':lou1, 'LOU用法':lou2, '工程师工号':userId, '工程师姓名':userName}
+                    row = {'变更后LOU用法':lou1, 'LOU用法':lou2}
+                    for j in range(len(pNames1)):
+                        pIdx2 = pNamesDict[j]
+                        pName1 = pNames1[j]
+                        pName2 = '无_%s' % j
+                        v1 = row1[j]
+                        v2 = '/'
+                        ck = '0'
+                        if pIdx2 >= 0:   
+                            pName2 = pNames2[pIdx2]
+                            v2 = row2[pIdx2]
+                            v1 = str(v1).lower().replace(' ','')
+                            v2 = str(v2).lower().replace(' ','')                            
+                            if v1 == v2:
+                                ck = '1'
+                        row[pName1] = v1
+                        row[pName2] = v2
+                        row['ck_%s' % j] = ck
+                    rows.append(row)
+                df = pd.DataFrame(rows)
+                st.dataframe(df)
+
+                def checkFun(value):
+                    v = str(value)
+                    if v == '0':
+                        return 'background-color: red'
+                    elif v == '1':
+                        return 'background-color: green'
+                    else:
+                        return ''
+                df = df.style.applymap(checkFun)
+
+                import io
+                buffer = io.BytesIO()
+                ef1 = ccFile.name.lower().split('.xlsx')[0]
+                ef2 = louFile.name.lower().split('.xlsx')[0]
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    sheet_new = 'Sheet1'
+                    df.to_excel(writer, sheet_name=sheet_new, index=False)                  
+                    writer.close()
+                    fileName= '%s_%s_校核.xlsx' % (ef1, ef2)
+                    st.write(fileName)
+                    st.download_button(
+                        label="下载校核文件",
+                        data=buffer,
+                        file_name=fileName,
+                        mime='application/vnd.ms-excel'
+                        )
 
             
            
@@ -2642,12 +2720,10 @@ def bomTools():
         showECTTool()
     elif s == 'BOM差异件核对':
         showBOMDiffTool()
+    elif s == '配置打点信息一致性核查':
+        showLOUCheckTool()
     else:
         st.title('其他BOM工具持续开发中，敬请期待！')
 
-if not bLogin:
-    loginPage()
-
-if bLogin:
-    bomTools()
+bomTools()
 
